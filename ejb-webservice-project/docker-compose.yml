@@ -26,9 +26,7 @@ services:
 
   # Application WildFly avec EJB et Web Service
   wildfly:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: tonioluc/ejb-webservice-project-wildfly
     container_name: vie-wildfly
     ports:
       - "8080:8080"    # HTTP

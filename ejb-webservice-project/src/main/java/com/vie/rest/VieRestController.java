@@ -120,7 +120,7 @@ public class VieRestController {
                         .entity(new ErrorResponse("Vie non trouvée avec l'ID: " + id))
                         .build();
             }
-            return Response.ok(new SuccessResponse("Vie supprimée avec succès")).build();
+            return Response.ok(new SuccessResponse("Vie supprimée avec succès lesy a")).build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity(new ErrorResponse("Erreur lors de la suppression de la vie: " + e.getMessage()))
