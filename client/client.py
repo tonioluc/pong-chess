@@ -81,14 +81,15 @@ class VieEditor:
         self.status_label = tk.Label(self.frame, text="", bg="#2b2b2b", fg="#ffffff", font=("Arial", 9))
         self.status_label.pack(side=tk.BOTTOM, pady=5)
         
-        # Auto-load on init
-        self.load_pieces()
+        # Delay auto-load until after mainloop starts to avoid segfault
+        self.frame.after(100, self.load_pieces)
     
     def load_pieces(self):
         """Fetch pieces from REST API and populate the list"""
         try:
             response = requests.get(API_BASE_URL, timeout=5)
             response.raise_for_status()
+        
             pieces = response.json()
             
             # Clear existing entries

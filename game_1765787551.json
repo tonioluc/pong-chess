@@ -1,0 +1,208 @@
+{
+  "hp_map": {
+    "R": 5,
+    "N": 4,
+    "B": 5,
+    "Q": 8,
+    "K": 10,
+    "P": 2
+  },
+  "scores": [
+    0,
+    0
+  ],
+  "pieces": [
+    {
+      "type": "R",
+      "color": "black",
+      "col": 0,
+      "row": 0,
+      "max_hp": 5,
+      "hp": 3,
+      "last_hit": 1765787590.125889
+    },
+    {
+      "type": "N",
+      "color": "black",
+      "col": 1,
+      "row": 0,
+      "max_hp": 4,
+      "hp": 4
+    },
+    {
+      "type": "B",
+      "color": "black",
+      "col": 2,
+      "row": 0,
+      "max_hp": 5,
+      "hp": 5
+    },
+    {
+      "type": "Q",
+      "color": "black",
+      "col": 3,
+      "row": 0,
+      "max_hp": 8,
+      "hp": 8
+    },
+    {
+      "type": "K",
+      "color": "black",
+      "col": 4,
+      "row": 0,
+      "max_hp": 10,
+      "hp": 2
+    },
+    {
+      "type": "B",
+      "color": "black",
+      "col": 5,
+      "row": 0,
+      "max_hp": 5,
+      "hp": 5
+    },
+    {
+      "type": "N",
+      "color": "black",
+      "col": 6,
+      "row": 0,
+      "max_hp": 4,
+      "hp": 4
+    },
+    {
+      "type": "R",
+      "color": "black",
+      "col": 7,
+      "row": 0,
+      "max_hp": 5,
+      "hp": 5
+    },
+    {
+      "type": "P",
+      "color": "black",
+      "col": 1,
+      "row": 1,
+      "max_hp": 2,
+      "hp": 1,
+      "last_hit": 1765787585.188116
+    },
+    {
+      "type": "P",
+      "color": "black",
+      "col": 2,
+      "row": 1,
+      "max_hp": 2,
+      "hp": 2
+    },
+    {
+      "type": "P",
+      "color": "black",
+      "col": 3,
+      "row": 1,
+      "max_hp": 2,
+      "hp": 1,
+      "last_hit": 1765787580.7179146
+    },
+    {
+      "type": "P",
+      "color": "black",
+      "col": 4,
+      "row": 1,
+      "max_hp": 2,
+      "hp": 1,
+      "last_hit": 1765787575.5683365
+    },
+    {
+      "type": "P",
+      "color": "black",
+      "col": 6,
+      "row": 1,
+      "max_hp": 2,
+      "hp": 1,
+      "last_hit": 1765787557.474574
+    },
+    {
+      "type": "P",
+      "color": "white",
+      "col": 4,
+      "row": 6,
+      "max_hp": 2,
+      "hp": 1,
+      "last_hit": 1765787560.294011
+    },
+    {
+      "type": "P",
+      "color": "white",
+      "col": 5,
+      "row": 6,
+      "max_hp": 2,
+      "hp": 2
+    },
+    {
+      "type": "P",
+      "color": "white",
+      "col": 6,
+      "row": 6,
+      "max_hp": 2,
+      "hp": 1,
+      "last_hit": 1765787558.413184
+    },
+    {
+      "type": "P",
+      "color": "white",
+      "col": 7,
+      "row": 6,
+      "max_hp": 2,
+      "hp": 1,
+      "last_hit": 1765787558.413184
+    },
+    {
+      "type": "B",
+      "color": "white",
+      "col": 2,
+      "row": 7,
+      "max_hp": 5,
+      "hp": 5
+    },
+    {
+      "type": "Q",
+      "color": "white",
+      "col": 3,
+      "row": 7,
+      "max_hp": 8,
+      "hp": 8
+    },
+    {
+      "type": "K",
+      "color": "white",
+      "col": 4,
+      "row": 7,
+      "max_hp": 10,
+      "hp": 2
+    },
+    {
+      "type": "B",
+      "color": "white",
+      "col": 5,
+      "row": 7,
+      "max_hp": 5,
+      "hp": 5
+    },
+    {
+      "type": "N",
+      "color": "white",
+      "col": 6,
+      "row": 7,
+      "max_hp": 4,
+      "hp": 4
+    },
+    {
+      "type": "R",
+      "color": "white",
+      "col": 7,
+      "row": 7,
+      "max_hp": 5,
+      "hp": 5
+    }
+  ]
+}
