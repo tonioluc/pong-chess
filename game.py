@@ -156,18 +156,14 @@ class Game:
             # Update hp_map
             self.hp_map = new_hp_map
             
-            # Update max_hp for all existing pieces (but keep current hp as is)
+            # Update max_hp and current hp for all existing pieces
             for piece in self.pieces:
                 piece_type = piece.get('type')
                 if piece_type in new_hp_map:
                     new_max_hp = new_hp_map[piece_type]
                     piece['max_hp'] = new_max_hp
-                    # Only increase hp if new max is higher and piece is at full health
-                    if piece.get('hp', 0) >= piece.get('max_hp', 0):
-                        piece['hp'] = new_max_hp
-                    # Clamp hp to new max if it exceeds
-                    elif piece.get('hp', 0) > new_max_hp:
-                        piece['hp'] = new_max_hp
+                    # Always reset current hp to new max value
+                    piece['hp'] = new_max_hp
             
             # Save updated state
             try:
