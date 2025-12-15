@@ -4,6 +4,7 @@ import math
 import logging
 import os
 import json
+import requests
 from entities.ball import Ball
 from entities.paddle import Paddle
 
@@ -11,6 +12,8 @@ from entities.paddle import Paddle
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
+# REST API configuration
+API_BASE_URL = os.environ.get('VIE_API_URL', 'http://localhost:8080/vie-webservice/api/vies')
 
 # Chessboard-style board: 8x8 cells. Pieces occupy full cells (no gaps).
 # Paddles sit just outside the pawn rows (between pawns and center area).
@@ -131,12 +134,80 @@ class Game:
     def reset_ball(self, toward_bottom=True):
         # direction_down True means ball moves downward (toward bottom player)
         self.ball.reset(self.WIDTH/2, self.HEIGHT/2, direction_down=toward_bottom)
+    
+    def refresh_hp_from_api(self):
+        """Reload HP values from REST API and update existing pieces"""
+        try:
+            response = requests.get(API_BASE_URL, timeout=5)
+            response.raise_for_status()
+            vies_data = response.json()
+            logger.debug("Refreshing HP from API: %s", vies_data)
+            
+            # Build new hp_map from API response
+            new_hp_map = {}
+            for vie in vies_data:
+                libelle = vie.get('libelle', '')
+                if '(' in libelle and ')' in libelle:
+                    piece_type = libelle.split('(')[1].split(')')[0]
+                    new_hp_map[piece_type] = vie.get('nombreVieInitiale', 1)
+            
+            logger.info("HP map refreshed from API: %s", new_hp_map)
+            
+            # Update hp_map
+            self.hp_map = new_hp_map
+            
+            # Update max_hp for all existing pieces (but keep current hp as is)
+            for piece in self.pieces:
+                piece_type = piece.get('type')
+                if piece_type in new_hp_map:
+                    new_max_hp = new_hp_map[piece_type]
+                    piece['max_hp'] = new_max_hp
+                    # Only increase hp if new max is higher and piece is at full health
+                    if piece.get('hp', 0) >= piece.get('max_hp', 0):
+                        piece['hp'] = new_max_hp
+                    # Clamp hp to new max if it exceeds
+                    elif piece.get('hp', 0) > new_max_hp:
+                        piece['hp'] = new_max_hp
+            
+            # Save updated state
+            try:
+                self._write_db()
+            except Exception as e:
+                logger.error("Failed to save after HP refresh: %s", e)
+            
+            logger.info("All pieces updated with new HP values")
+            return True
+            
+        except Exception as e:
+            logger.error("Failed to refresh HP from API: %s", e)
+            return False
 
     def _init_pieces(self):
         # full major piece order for 8 columns
         majors_full = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
-        # default HP map (used if DB doesn't provide hp_map)
-        self.hp_map = {'P': 2, 'N': 4, 'R': 5, 'B': 5, 'Q': 8, 'K': 10}
+        # Fetch HP values from REST API
+        try:
+            response = requests.get(API_BASE_URL, timeout=5)
+            response.raise_for_status()
+            vies_data = response.json()
+            logger.debug("Raw API response: %s", vies_data)
+            # Build hp_map from API response: extract piece type from libelle
+            # Expected format: "Tour (R)", "Cavalier (N)", etc.
+            self.hp_map = {}
+            for vie in vies_data:
+                libelle = vie.get('libelle', '')
+                # Extract piece type from parentheses
+                if '(' in libelle and ')' in libelle:
+                    piece_type = libelle.split('(')[1].split(')')[0]
+                    self.hp_map[piece_type] = vie.get('nombreVieInitiale', 1)
+                    logger.debug("Parsed piece: %s -> %d HP", piece_type, vie.get('nombreVieInitiale', 1))
+                else:
+                    logger.warning("Skipping invalid libelle format: '%s' (expected format: 'Name (X)')", libelle)
+            logger.info("HP map loaded from REST API: %s", self.hp_map)
+        except Exception as e:
+            logger.error("Failed to load HP values from REST API: %s. Using defaults.", e)
+            # Fallback to default values
+            self.hp_map = {'P': 2, 'N': 4, 'R': 5, 'B': 5, 'Q': 8, 'K': 10}
         # choose central slice of majors_full according to active columns
         start = (len(majors_full) - self.active_cols) // 2
         majors = majors_full[start:start + self.active_cols]
@@ -185,6 +256,8 @@ class Game:
         logger.info("Ball trajectory chosen by player 1: %s, velocity=(%.1f, %.1f)", trajectory, self.ball.dx, self.ball.dy)
 
     def _write_db(self):
+        # Write game state to local JSON file (for game persistence)
+        # HP values are managed via REST API, not stored here
         try:
             data = {
                 'hp_map': self.hp_map,
@@ -197,11 +270,32 @@ class Game:
             logger.exception('Failed to write DB: %s', e)
 
     def _load_db(self):
-        # load db.json and populate hp_map, pieces and scores
+        # Load game state from local JSON file
         with open(self.db_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        # hp map
-        self.hp_map = data.get('hp_map', self.hp_map or {})
+        
+        # Fetch current HP values from REST API
+        try:
+            response = requests.get(API_BASE_URL, timeout=5)
+            response.raise_for_status()
+            vies_data = response.json()
+            logger.debug("Raw API response: %s", vies_data)
+            # Build hp_map from API response
+            self.hp_map = {}
+            for vie in vies_data:
+                libelle = vie.get('libelle', '')
+                if '(' in libelle and ')' in libelle:
+                    piece_type = libelle.split('(')[1].split(')')[0]
+                    self.hp_map[piece_type] = vie.get('nombreVieInitiale', 1)
+                    logger.debug("Parsed piece: %s -> %d HP", piece_type, vie.get('nombreVieInitiale', 1))
+                else:
+                    logger.warning("Skipping invalid libelle format: '%s' (expected format: 'Name (X)')", libelle)
+            logger.info("HP map refreshed from REST API: %s", self.hp_map)
+        except Exception as e:
+            logger.warning("Failed to refresh HP values from REST API: %s. Using saved values.", e)
+            # Fallback to saved hp_map
+            self.hp_map = data.get('hp_map', self.hp_map or {})
+        
         # scores
         self.scores = data.get('scores', self.scores)
         # pieces: ensure hp and max_hp keys set according to hp_map if missing
@@ -224,6 +318,30 @@ class Game:
         # Ensure template exists
         if not os.path.exists(self.template_path):
             raise FileNotFoundError(f"Template not found: {self.template_path}")
+        
+        # Load HP values from REST API FIRST (before creating pieces)
+        try:
+            response = requests.get(API_BASE_URL, timeout=5)
+            response.raise_for_status()
+            vies_data = response.json()
+            logger.debug("Raw API response in _create_new_game_from_template: %s", vies_data)
+            # Build hp_map from API response
+            hp_map = {}
+            for vie in vies_data:
+                libelle = vie.get('libelle', '')
+                if '(' in libelle and ')' in libelle:
+                    piece_type = libelle.split('(')[1].split(')')[0]
+                    hp_map[piece_type] = vie.get('nombreVieInitiale', 1)
+                    logger.debug("Parsed piece in template: %s -> %d HP", piece_type, vie.get('nombreVieInitiale', 1))
+            logger.info("HP map loaded from REST API for new game: %s", hp_map)
+        except Exception as e:
+            logger.error("Failed to load HP values from REST API in _create_new_game_from_template: %s. Using defaults.", e)
+            # Fallback to default values
+            hp_map = {'P': 2, 'N': 4, 'R': 5, 'B': 5, 'Q': 8, 'K': 10}
+        
+        # Store hp_map in instance
+        self.hp_map = hp_map
+        
         # create a new per-game filename
         ts = int(time.time())
         new_name = f'game_{ts}.json'
@@ -231,37 +349,40 @@ class Game:
         # copy template content into new file (load+write to set hp/max_hp explicitly)
         with open(self.template_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+        
         # decide whether to use template pieces (default 8x8) or generate
-        # a reduced layout based on self.active_cols. Always preserve hp_map
-        hp_map = data.get('hp_map', {})
+        # a reduced layout based on self.active_cols. Use API hp_map (not template)
         if self.active_cols == COLS:
             pieces = []
             for pc in data.get('pieces', []):
                 p = dict(pc)
                 t = p.get('type')
-                default_hp = hp_map.get(t, 1)
+                default_hp = self.hp_map.get(t, 1)  # Use API hp_map, not template
                 if 'max_hp' not in p:
                     p['max_hp'] = default_hp
                 if 'hp' not in p:
                     p['hp'] = p.get('max_hp', default_hp)
+                # Ensure hp is set to API value
+                p['hp'] = default_hp
+                p['max_hp'] = default_hp
                 pieces.append(p)
         else:
             # for reduced boards, generate pieces according to self.cols/self.rows
-            self.hp_map = hp_map or self.hp_map
             self.pieces = []
             self._init_pieces()
             pieces = list(self.pieces)
 
         state = {
-            'hp_map': hp_map,
+            'hp_map': self.hp_map,  # Use API hp_map
             'scores': data.get('scores', [0,0]),
             'pieces': pieces
         }
         with open(new_path, 'w', encoding='utf-8') as f:
             json.dump(state, f, ensure_ascii=False, indent=2)
-        # set current db_path and load
+        # set current db_path and load pieces into instance
         self.db_path = new_path
-        self._load_db()
+        self.pieces = pieces
+        self.scores = data.get('scores', [0,0])
 
 
     def update(self, dt, player_commands):

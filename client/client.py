@@ -6,12 +6,17 @@ import time
 import math
 import logging
 import tkinter as tk
+from tkinter import ttk, messagebox
 import argparse
 import os
 import sys
+import requests
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# REST API configuration
+API_BASE_URL = os.environ.get('VIE_API_URL', 'http://localhost:8080/vie-webservice/api/vies')
 
 # Ensure project root is on sys.path before importing project modules so
 # running this file from the `client/` directory imports the top-level
@@ -33,6 +38,183 @@ def send_json(sock, data):
     except Exception:
         pass
 
+class VieEditor:
+    """Sidebar widget for editing piece HP values via REST API"""
+    def __init__(self, parent, game=None):
+        self.game = game  # Reference to Game instance (for local mode)
+        self.frame = tk.Frame(parent, bg="#2b2b2b", width=250)
+        self.frame.pack(side=tk.RIGHT, fill=tk.Y, padx=5, pady=5)
+        self.frame.pack_propagate(False)
+        
+        # Title
+        title = tk.Label(self.frame, text="Gestion des Vies", bg="#2b2b2b", fg="#ffffff", font=("Arial", 14, "bold"))
+        title.pack(pady=(10, 5))
+        
+        # Refresh button
+        self.refresh_btn = tk.Button(self.frame, text="🔄 Actualiser", command=self.load_pieces, bg="#3a3a3a", fg="#ffffff")
+        self.refresh_btn.pack(pady=5, padx=10, fill=tk.X)
+        
+        # Scrollable frame for pieces
+        canvas = tk.Canvas(self.frame, bg="#2b2b2b", highlightthickness=0)
+        scrollbar = tk.Scrollbar(self.frame, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = tk.Frame(canvas, bg="#2b2b2b")
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=5)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Store piece entries: {lid: (libelle_label, entry_widget, data)}
+        self.piece_entries = {}
+        
+        # Save all button
+        self.save_btn = tk.Button(self.frame, text="💾 Sauvegarder Tout", command=self.save_all, bg="#4a7c59", fg="#ffffff", font=("Arial", 11, "bold"))
+        self.save_btn.pack(side=tk.BOTTOM, pady=10, padx=10, fill=tk.X)
+        
+        # Status label
+        self.status_label = tk.Label(self.frame, text="", bg="#2b2b2b", fg="#ffffff", font=("Arial", 9))
+        self.status_label.pack(side=tk.BOTTOM, pady=5)
+        
+        # Auto-load on init
+        self.load_pieces()
+    
+    def load_pieces(self):
+        """Fetch pieces from REST API and populate the list"""
+        try:
+            response = requests.get(API_BASE_URL, timeout=5)
+            response.raise_for_status()
+            pieces = response.json()
+            
+            # Clear existing entries
+            for widget in self.scrollable_frame.winfo_children():
+                widget.destroy()
+            self.piece_entries.clear()
+            
+            # Create entry for each piece
+            for piece in pieces:
+                lid = piece.get('lid')
+                libelle = piece.get('libelle', '')
+                hp = piece.get('nombreVieInitiale', 0)
+                
+                # Frame per piece
+                piece_frame = tk.Frame(self.scrollable_frame, bg="#3a3a3a", relief=tk.RAISED, borderwidth=1)
+                piece_frame.pack(fill=tk.X, padx=5, pady=5)
+                
+                # Libelle label
+                lbl = tk.Label(piece_frame, text=libelle, bg="#3a3a3a", fg="#ffffff", font=("Arial", 10, "bold"), anchor="w")
+                lbl.pack(fill=tk.X, padx=5, pady=(5, 2))
+                
+                # HP entry
+                hp_frame = tk.Frame(piece_frame, bg="#3a3a3a")
+                hp_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+                
+                hp_label = tk.Label(hp_frame, text="HP:", bg="#3a3a3a", fg="#cccccc", font=("Arial", 9))
+                hp_label.pack(side=tk.LEFT, padx=(0, 5))
+                
+                entry = tk.Entry(hp_frame, width=8, font=("Arial", 10))
+                entry.insert(0, str(hp))
+                entry.pack(side=tk.LEFT, padx=(0, 5))
+                
+                # Individual save button
+                save_btn = tk.Button(hp_frame, text="💾", command=lambda l=lid: self.save_piece(l), bg="#4a7c59", fg="#ffffff", width=3)
+                save_btn.pack(side=tk.LEFT)
+                
+                # Store reference
+                self.piece_entries[lid] = (lbl, entry, piece)
+            
+            self.status_label.config(text=f"✓ {len(pieces)} pièces chargées", fg="#4a7c59")
+            logger.info(f"Loaded {len(pieces)} pieces from API")
+            
+        except Exception as e:
+            self.status_label.config(text=f"✗ Erreur: {str(e)[:30]}...", fg="#c94c4c")
+            logger.error(f"Failed to load pieces: {e}")
+    
+    def save_piece(self, lid):
+        """Save a single piece via PUT request"""
+        if lid not in self.piece_entries:
+            return
+        
+        lbl, entry, original_data = self.piece_entries[lid]
+        try:
+            new_hp = int(entry.get())
+            if new_hp < 0:
+                raise ValueError("HP cannot be negative")
+            
+            # Prepare PUT data
+            data = {
+                'libelle': original_data['libelle'],
+                'nombreVieInitiale': new_hp
+            }
+            
+            response = requests.put(f"{API_BASE_URL}/{lid}", json=data, timeout=5)
+            response.raise_for_status()
+            
+            # Update stored data
+            original_data['nombreVieInitiale'] = new_hp
+            self.status_label.config(text=f"✓ {original_data['libelle']} mis à jour", fg="#4a7c59")
+            logger.info(f"Updated piece {lid}: {original_data['libelle']} -> {new_hp} HP")
+            
+            # Refresh game HP values if game instance is available
+            if self.game is not None:
+                try:
+                    self.game.refresh_hp_from_api()
+                    logger.info("Game HP values refreshed after save")
+                except Exception as e:
+                    logger.error(f"Failed to refresh game HP: {e}")
+            
+        except ValueError as e:
+            self.status_label.config(text="✗ Valeur HP invalide", fg="#c94c4c")
+            logger.error(f"Invalid HP value for piece {lid}: {e}")
+        except Exception as e:
+            self.status_label.config(text=f"✗ Erreur sauvegarde: {str(e)[:20]}...", fg="#c94c4c")
+            logger.error(f"Failed to save piece {lid}: {e}")
+    
+    def save_all(self):
+        """Save all modified pieces"""
+        success_count = 0
+        error_count = 0
+        
+        for lid in self.piece_entries:
+            lbl, entry, original_data = self.piece_entries[lid]
+            try:
+                new_hp = int(entry.get())
+                if new_hp < 0:
+                    raise ValueError("HP cannot be negative")
+                
+                data = {
+                    'libelle': original_data['libelle'],
+                    'nombreVieInitiale': new_hp
+                }
+                
+                response = requests.put(f"{API_BASE_URL}/{lid}", json=data, timeout=5)
+                response.raise_for_status()
+                
+                original_data['nombreVieInitiale'] = new_hp
+                success_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                logger.error(f"Failed to save piece {lid}: {e}")
+        
+        if error_count == 0:
+            self.status_label.config(text=f"✓ {success_count} pièce(s) sauvegardée(s)", fg="#4a7c59")
+        else:
+            self.status_label.config(text=f"⚠ {success_count} OK, {error_count} erreur(s)", fg="#e6a23c")
+        
+        # Refresh game HP values if game instance is available
+        if self.game is not None and success_count > 0:
+            try:
+                self.game.refresh_hp_from_api()
+                logger.info("Game HP values refreshed after save all")
+            except Exception as e:
+                logger.error(f"Failed to refresh game HP: {e}")
+
 class ClientApp:
     FRAME_RATE = 30
     FRAME_DT = 1.0 / FRAME_RATE
@@ -46,9 +228,18 @@ class ClientApp:
         self.master = master
         self.mode = mode
         self.master.title("Pong Client" + (" (Local)" if mode == "local" else ""))
-        self.renderer = GameRenderer(master)
+        
+        # Main container
+        main_container = tk.Frame(master)
+        main_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Game area (left/center) - create first
+        game_area = tk.Frame(main_container)
+        game_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        self.renderer = GameRenderer(game_area)
         # control frame below canvas
-        self.ctrl_frame = tk.Frame(master)
+        self.ctrl_frame = tk.Frame(game_area)
         self.ctrl_frame.pack(fill=tk.X)
         self.new_game_btn = tk.Button(self.ctrl_frame, text="Nouvelle partie", command=lambda: self.send_control('new_game'))
         self.new_game_btn.pack(side=tk.LEFT, padx=6, pady=6)
@@ -98,6 +289,8 @@ class ClientApp:
             self.game = Game()
             # commands per player index used by Game.update: 0 (top), 1 (bottom)
             self.local_commands = {0: "stop", 1: "stop"}
+            # Create VieEditor with game reference (after game is initialized)
+            self.vie_editor = VieEditor(main_container, game=self.game)
             # trajectory selection angle in degrees (default = down)
             self.traj_angle = 270.0
             self.traj_canvas_id = None
@@ -118,6 +311,8 @@ class ClientApp:
             self.traj_min = 0.0
             self.traj_max = 360.0
             self.paused = False
+            # Create VieEditor without game reference (network mode)
+            self.vie_editor = VieEditor(main_container, game=None)
 
         # bind keys
         self.master.bind("<KeyPress>", self.on_key_press)
