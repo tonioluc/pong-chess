@@ -1,0 +1,62 @@
+You are tasked with creating a **fully functional 1v1 networked Pong game in Python** using **Tkinter** for the GUI and a **TCP client-server architecture**. Follow these requirements **exactly**:
+
+1. Project Structure:
+- Create an `entities` package containing separate modules:
+    - `ball.py`: Ball class with position, velocity, update logic, and rendering properties (color, radius)
+    - `paddle.py`: Paddle class with position, movement logic, collision bounds, and rendering properties (color, width, height)
+- `game.py`: imports classes from the `entities` package and contains the Game class managing the game state, collisions, scoring, and ball/paddle updates
+- `server.py`: authoritative server program, headless, maintaining the full game state
+- `client/` folder: self-contained client with:
+    - `client.py`: main client program using Tkinter
+    - `renderer.py`: GameRenderer class that uses the rendering properties from each entity class
+    - `config.py`: a configuration file to set **server IP address and port**
+    - `entities/` folder (copy of the shared `entities` package or symlink if needed)
+- The client folder must be fully **self-contained**, so it can be copied to another machine and run without the server
+
+2. Server Requirements:
+- Maintain the full game state (ball, paddles, scores)
+- Listen for **exactly two clients** over TCP on LAN
+- Receive **paddle movement commands** from both clients concurrently: `'left'`, `'right'`, `'stop'`
+- Update the game state at **60 FPS**, handling simultaneous paddle movements in real-time
+- Broadcast the **full game state** (positions, velocities, scores) to both clients at each update
+- Use **JSON serialization** for all network messages
+- Use **object-oriented programming** with separate classes as described
+
+3. Client Requirements:
+- Read server IP address and port from a **single configuration file** (`config.py`)
+- Connect to the server via TCP
+- Send paddle movement commands to server in response to **horizontal key presses** (`A/D` for player 1, `Left/Right` arrows for player 2) in real-time
+- Receive full game state from server and render it smoothly at **60 FPS** using Tkinter’s `after()` method
+- Render each entity based on its **rendering properties** (color, size, shape) defined in its class
+- Use **object-oriented programming**
+- Must be fully **self-contained** in the client folder and independent of the server
+
+4. Game Mechanics:
+- Ball moves **vertically** and bounces off paddles and top/bottom walls
+- Score increases when a player misses the ball
+- Ball resets after scoring
+- Paddles move **horizontally** and stay within window bounds
+- Both players can move their paddles simultaneously; the game is **real-time**, not turn-based
+
+5. Deliverables:
+- `entities/ball.py`
+- `entities/paddle.py`
+- `game.py`
+- `server.py`
+- `client/client.py`
+- `client/renderer.py`
+- `client/config.py`: server IP and port configuration
+- `client/entities/` (copy of shared entities package if needed)
+- All code must be fully functional over LAN, well-structured, **object-oriented**, and runnable without external dependencies beyond the Python standard library
+- Each entity class must allow **easy customization of rendering properties** such as color, size, and shape
+
+**Important instructions for the AI:**
+- Provide the **complete code for all files in one response**
+- Ensure **self-contained client folder** for easy deployment
+- Make the server IP and port configurable via a **single client configuration file**
+- Make sure the game runs **real-time**, with **simultaneous player input**, at **60 FPS**
+- Use **OOP principles**, separate entities into their own modules, and put them in a package
+- Rendering must depend on the entity class properties, not hardcoded values
+- Include proper TCP networking logic for authoritative server updates
+
+Output the full code exactly as specified, ready to run on LAN with one server and two clients.

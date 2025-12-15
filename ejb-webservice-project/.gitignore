@@ -1,0 +1,40 @@
+# Ignorer les fichiers de build Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Ignorer les fichiers IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Ignorer les fichiers de logs
+*.log
+logs/
+
+# Ignorer les fichiers OS
+.DS_Store
+Thumbs.db
+
+# Ignorer les fichiers temporaires
+*.tmp
+*.bak
+*.class
+
+# Ignorer les données Docker (optionnel, si vous ne voulez pas versionner)
+# docker-compose.override.yml

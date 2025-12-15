@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vie Web Service</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-left: 4px solid #2196F3;
+            margin: 20px 0;
+        }
+        .endpoint {
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌟 Vie Web Service - Application EJB</h1>
+        
+        <div class="info">
+            <h3>ℹ️ Informations sur le service</h3>
+            <p>Cette application expose un service web SOAP pour gérer les opérations CRUD sur l'entité <strong>Vie</strong>.</p>
+        </div>
+
+        <h3>📡 WSDL du Web Service</h3>
+        <div class="endpoint">
+            <a href="/vie-webservice/VieWebService?wsdl" target="_blank">
+                /vie-webservice/VieWebService?wsdl
+            </a>
+        </div>
+
+        <h3>🔧 Opérations disponibles</h3>
+        <ul>
+            <li><strong>createVie</strong> - Créer une nouvelle Vie</li>
+            <li><strong>getVieById</strong> - Récupérer une Vie par ID</li>
+            <li><strong>getAllVies</strong> - Récupérer toutes les Vies</li>
+            <li><strong>updateVie</strong> - Mettre à jour une Vie</li>
+            <li><strong>deleteVie</strong> - Supprimer une Vie</li>
+            <li><strong>countVies</strong> - Compter le nombre de Vies</li>
+        </ul>
+
+        <h3>📝 Tester avec Postman</h3>
+        <p>
+            1. Importez le WSDL dans Postman<br>
+            2. Utilisez l'URL: <code>http://localhost:8080/vie-webservice/VieWebService</code><br>
+            3. Sélectionnez les opérations SOAP disponibles
+        </p>
+
+        <div class="info">
+            <h4>✅ Statut de l'application</h4>
+            <p>L'application est démarrée et prête à recevoir des requêtes.</p>
+        </div>
+    </div>
+</body>
+</html>

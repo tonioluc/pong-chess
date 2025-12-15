@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Base de données MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: vie-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: viedb
+      MYSQL_USER: vieuser
+      MYSQL_PASSWORD: viepassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - vie-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Application WildFly avec EJB et Web Service
+  wildfly:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vie-wildfly
+    ports:
+      - "8080:8080"    # HTTP
+      - "9990:9990"    # Admin Console
+      - "8787:8787"    # Debug port
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=viedb
+      - DB_USER=vieuser
+      - DB_PASSWORD=viepassword
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - vie-network
+    volumes:
+      - wildfly-logs:/opt/jboss/wildfly/standalone/log
+    command: >
+      /bin/bash -c "
+        echo 'Attente du démarrage de MySQL...' &&
+        sleep 10 &&
+        echo 'Configuration de WildFly...' &&
+        /opt/jboss/wildfly/bin/jboss-cli.sh --file=/opt/jboss/wildfly/configure-wildfly.cli &&
+        echo 'Démarrage de WildFly...' &&
+        /opt/jboss/wildfly/bin/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0
+      "
+
+networks:
+  vie-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
+  wildfly-logs:
+    driver: local

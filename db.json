@@ -1,0 +1,64 @@
+{
+  "hp_map": {
+    "P": 2,
+    "N": 4,
+    "R": 5,
+    "B": 5,
+    "Q": 8,
+    "K": 10
+  },
+  "scores": [
+    0,
+    0
+  ],
+  "pieces": [
+    {
+      "type": "R",
+      "color": "black",
+      "col": 0,
+      "row": 0,
+      "max_hp": 5,
+      "hp": 3
+    },
+    {
+      "type": "K",
+      "color": "black",
+      "col": 4,
+      "row": 0,
+      "max_hp": 10,
+      "hp": 6
+    },
+    {
+      "type": "R",
+      "color": "white",
+      "col": 0,
+      "row": 7,
+      "max_hp": 5,
+      "hp": 4
+    },
+    {
+      "type": "N",
+      "color": "white",
+      "col": 1,
+      "row": 7,
+      "max_hp": 4,
+      "hp": 1
+    },
+    {
+      "type": "B",
+      "color": "white",
+      "col": 2,
+      "row": 7,
+      "max_hp": 5,
+      "hp": 1
+    },
+    {
+      "type": "R",
+      "color": "white",
+      "col": 7,
+      "row": 7,
+      "max_hp": 5,
+      "hp": 3
+    }
+  ]
+}

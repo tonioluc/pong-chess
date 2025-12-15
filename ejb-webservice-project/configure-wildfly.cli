@@ -1,0 +1,16 @@
+# Configuration automatique de WildFly avec CLI
+
+# Se connecter au serveur en mode embedded
+embed-server --server-config=standalone.xml
+
+# Ajouter le driver MySQL
+/subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql,driver-class-name=com.mysql.cj.jdbc.Driver,driver-xa-datasource-class-name=com.mysql.cj.jdbc.MysqlXADataSource)
+
+# Créer la datasource VieDS
+data-source add --name=VieDS --jndi-name=java:jboss/datasources/VieDS --driver-name=mysql --connection-url="jdbc:mysql://mysql:3306/viedb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" --user-name=vieuser --password=viepassword --use-java-context=true --enabled=true --validate-on-match=true --background-validation=false --min-pool-size=5 --max-pool-size=20
+
+# Tester la connexion à la datasource
+/subsystem=datasources/data-source=VieDS:test-connection-in-pool
+
+# Arrêter le serveur embedded
+stop-embedded-server
