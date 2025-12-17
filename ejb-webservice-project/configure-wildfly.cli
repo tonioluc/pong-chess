@@ -3,14 +3,26 @@
 # Se connecter au serveur en mode embedded
 embed-server --server-config=standalone.xml
 
-# Ajouter le driver MySQL
-/subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql,driver-class-name=com.mysql.cj.jdbc.Driver,driver-xa-datasource-class-name=com.mysql.cj.jdbc.MysqlXADataSource)
+# Ajouter le driver MySQL (idempotent)
+if (outcome == success) of /subsystem=datasources/jdbc-driver=mysql:read-resource
+	echo Driver MySQL already exists, skipping
+else
+	/subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql,driver-class-name=com.mysql.cj.jdbc.Driver,driver-xa-datasource-class-name=com.mysql.cj.jdbc.MysqlXADataSource)
+end-if
 
-# Créer la datasource VieDS
-data-source add --name=VieDS --jndi-name=java:jboss/datasources/VieDS --driver-name=mysql --connection-url="jdbc:mysql://mysql:3306/viedb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" --user-name=vieuser --password=viepassword --use-java-context=true --enabled=true --validate-on-match=true --background-validation=false --min-pool-size=5 --max-pool-size=20
+# Créer la datasource VieDS (idempotent)
+if (outcome == success) of /subsystem=datasources/data-source=VieDS:read-resource
+	echo Datasource VieDS already exists, skipping creation
+else
+	data-source add --name=VieDS --jndi-name=java:jboss/datasources/VieDS --driver-name=mysql --connection-url="jdbc:mysql://mysql:3306/viedb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true" --user-name=vieuser --password=viepassword --use-java-context=true --enabled=true --validate-on-match=true --background-validation=false --min-pool-size=5 --max-pool-size=20
+end-if
 
-# Tester la connexion à la datasource
-/subsystem=datasources/data-source=VieDS:test-connection-in-pool
+# Tester la connexion à la datasource (ne pas échouer si indisponible)
+try
+	/subsystem=datasources/data-source=VieDS:test-connection-in-pool
+catch
+	echo Warning: could not test datasource connection (may be due to DB timing)
+end-try
 
 # Arrêter le serveur embedded
 stop-embedded-server
