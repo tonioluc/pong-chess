@@ -3,7 +3,7 @@ import math
 import random
 
 class Ball:
-    def __init__(self, x=400, y=300, radius=8, color="#FFFFFF", speed=300):
+    def __init__(self, x=400, y=300, radius=10, color="#ff79c6", speed=300):
         self.x = x
         self.y = y
         self.radius = radius

@@ -17,12 +17,12 @@ PIECE_UNICODE = {
 
 
 class GameRenderer:
-    def __init__(self, root, width=800, height=600, bg="#000000"):
+    def __init__(self, root, width=800, height=600, bg="#1a1a2e"):
         self.root = root
         self.width = width
         self.height = height
         self.bg = bg
-        self.canvas = tk.Canvas(root, width=width, height=height, bg=bg, highlightthickness=0)
+        self.canvas = tk.Canvas(root, width=width, height=height, bg=bg, highlightthickness=2, highlightbackground="#e94560")
         self.canvas.pack()
         # store canvas ids
         self.ball_id = None
@@ -63,17 +63,17 @@ class GameRenderer:
             cell = board.get('cell_size', bw/cols)
             # background
             if self.board_bg_id is None:
-                self.board_bg_id = self.canvas.create_rectangle(bx, by, bx+bw, by+bh, fill="#222222", outline="#444444")
+                self.board_bg_id = self.canvas.create_rectangle(bx, by, bx+bw, by+bh, fill="#16213e", outline="#0f3460", width=3)
             else:
                 self.canvas.coords(self.board_bg_id, bx, by, bx+bw, by+bh)
             # grid lines (create once if empty)
             if not self.grid_ids:
                 for c in range(1, cols):
                     x = bx + c*cell
-                    self.grid_ids.append(self.canvas.create_line(x, by, x, by+bh, fill="#555555"))
+                    self.grid_ids.append(self.canvas.create_line(x, by, x, by+bh, fill="#0f3460", dash=(4, 2)))
                 for r in range(1, rows):
                     y = by + r*cell
-                    self.grid_ids.append(self.canvas.create_line(bx, y, bx+bw, y, fill="#555555"))
+                    self.grid_ids.append(self.canvas.create_line(bx, y, bx+bw, y, fill="#0f3460", dash=(4, 2)))
         else:
             bx = 0; by = 0; bw = w; bh = h; cell = bw/8
 
@@ -92,14 +92,14 @@ class GameRenderer:
             bottom = top + cell
             key = (col, row)
             seen.add(key)
-            color = "#CCCCCC" if pc.get('color') == 'white' else "#333333"
+            color = "#a8dadc" if pc.get('color') == 'white' else "#457b9d"
             # draw rect
             if key not in self.piece_items:
-                rect_id = self.canvas.create_rectangle(left, top, right, bottom, fill=color, outline=color)
+                rect_id = self.canvas.create_rectangle(left+2, top+2, right-2, bottom-2, fill=color, outline="#1d3557", width=2)
                 # unicode symbol centered
                 symbol = PIECE_UNICODE.get((pc.get('type'), pc.get('color')), '?')
-                text_color = "#000000" if pc.get('color') == 'white' else "#FFFFFF"
-                text_id = self.canvas.create_text(left+cell/2, top+cell/2, text=symbol, fill=text_color, font=("Arial", max(8, int(cell*0.6))))
+                text_color = "#1d3557" if pc.get('color') == 'white' else "#f1faee"
+                text_id = self.canvas.create_text(left+cell/2, top+cell/2, text=symbol, fill=text_color, font=("Helvetica", max(8, int(cell*0.55)), "bold"))
                 # HP bar background and foreground
                 hp = pc.get('hp', 1)
                 max_hp = pc.get('max_hp', 1)
@@ -109,17 +109,17 @@ class GameRenderer:
                 bar_top = bottom - bar_h - 4
                 bar_right = bar_left + bar_w
                 bar_bottom = bar_top + bar_h
-                hp_bg_id = self.canvas.create_rectangle(bar_left, bar_top, bar_right, bar_bottom, fill="#222222", outline="#000000")
+                hp_bg_id = self.canvas.create_rectangle(bar_left, bar_top, bar_right, bar_bottom, fill="#2b2d42", outline="#8d99ae")
                 # foreground width based on hp ratio
                 ratio = max(0.0, min(1.0, hp / max_hp)) if max_hp > 0 else 0.0
                 fg_right = bar_left + bar_w * ratio
-                # color: green -> red based on ratio
+                # color: cyan -> orange based on ratio
                 if ratio > 0.5:
-                    fg_color = "#44DD44"
+                    fg_color = "#06d6a0"
                 elif ratio > 0.2:
-                    fg_color = "#FFAA33"
+                    fg_color = "#ffd166"
                 else:
-                    fg_color = "#FF4444"
+                    fg_color = "#ef476f"
                 hp_fg_id = self.canvas.create_rectangle(bar_left, bar_top, fg_right, bar_bottom, fill=fg_color, outline=fg_color)
                 # hp text (show current / max)
                 try:
@@ -149,11 +149,11 @@ class GameRenderer:
                 ratio = max(0.0, min(1.0, hp / max_hp)) if max_hp > 0 else 0.0
                 fg_right = bar_left + bar_w * ratio
                 if ratio > 0.5:
-                    fg_color = "#44DD44"
+                    fg_color = "#06d6a0"
                 elif ratio > 0.2:
-                    fg_color = "#FFAA33"
+                    fg_color = "#ffd166"
                 else:
-                    fg_color = "#FF4444"
+                    fg_color = "#ef476f"
                 self.canvas.coords(hp_fg_id, bar_left, bar_top, fg_right, bar_bottom)
                 self.canvas.itemconfig(hp_fg_id, fill=fg_color, outline=fg_color)
                 # update hp text and position
@@ -176,7 +176,7 @@ class GameRenderer:
             except Exception:
                 pass
 
-        # Draw paddles
+        # Draw paddles with rounded style
         for i in range(2):
             pd = paddles_d[i]
             px = pd.get("x", w/2)
@@ -188,13 +188,14 @@ class GameRenderer:
             top = py - ph/2
             right = px + pw/2
             bottom = py + ph/2
+            outline_color = "#f8f8f2" if i == 0 else "#282a36"
             if self.paddle_ids[i] is None:
-                self.paddle_ids[i] = self.canvas.create_rectangle(left, top, right, bottom, fill=color, outline=color)
+                self.paddle_ids[i] = self.canvas.create_rectangle(left, top, right, bottom, fill=color, outline=outline_color, width=3)
             else:
                 self.canvas.coords(self.paddle_ids[i], left, top, right, bottom)
-                self.canvas.itemconfig(self.paddle_ids[i], fill=color, outline=color)
+                self.canvas.itemconfig(self.paddle_ids[i], fill=color, outline=outline_color)
 
-        # Draw ball
+        # Draw ball with glow effect
         bx_ball = ball_d.get("x", w/2)
         by_ball = ball_d.get("y", h/2)
         r = ball_d.get("radius", 8)
@@ -203,11 +204,12 @@ class GameRenderer:
         top = by_ball - r
         right = bx_ball + r
         bottom = by_ball + r
+        glow_color = "#ff6b6b"
         if self.ball_id is None:
-            self.ball_id = self.canvas.create_oval(left, top, right, bottom, fill=color, outline=color)
+            self.ball_id = self.canvas.create_oval(left, top, right, bottom, fill=color, outline=glow_color, width=3)
         else:
             self.canvas.coords(self.ball_id, left, top, right, bottom)
-            self.canvas.itemconfig(self.ball_id, fill=color, outline=color)
+            self.canvas.itemconfig(self.ball_id, fill=color, outline=glow_color)
 
         # Ensure paddles and ball are on top of pieces/board: raise their canvas items
         try:
@@ -219,15 +221,15 @@ class GameRenderer:
         except Exception:
             pass
 
-        # Draw scores (top-left and bottom-left)
+        # Draw scores (top-right and bottom-right with new style)
         top_score = scores[0]
         bottom_score = scores[1]
         if self.score_text_ids[0] is None:
-            self.score_text_ids[0] = self.canvas.create_text(50, 30, text=str(top_score), fill="#FFFFFF", font=("Arial", 20))
+            self.score_text_ids[0] = self.canvas.create_text(w-60, 35, text=str(top_score), fill="#4ecdc4", font=("Courier", 24, "bold"))
         else:
             self.canvas.itemconfig(self.score_text_ids[0], text=str(top_score))
         if self.score_text_ids[1] is None:
-            self.score_text_ids[1] = self.canvas.create_text(50, h-30, text=str(bottom_score), fill="#FFFFFF", font=("Arial", 20))
+            self.score_text_ids[1] = self.canvas.create_text(w-60, h-35, text=str(bottom_score), fill="#ffe66d", font=("Courier", 24, "bold"))
         else:
             self.canvas.itemconfig(self.score_text_ids[1], text=str(bottom_score))
 

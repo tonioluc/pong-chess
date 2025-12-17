@@ -91,11 +91,11 @@ class Game:
         bottom_paddle_y = board_y0 + cell_size * (self.rows - 2) - pad_h/2 - 4
         center_x = self.WIDTH / 2
         self.paddles = [
-            Paddle(x=center_x, y=top_paddle_y, width=pad_w, height=pad_h, color="#00CCFF"),
-            Paddle(x=center_x, y=bottom_paddle_y, width=pad_w, height=pad_h, color="#FFCC00")
+            Paddle(x=center_x, y=top_paddle_y, width=pad_w, height=pad_h, color="#bd93f9"),
+            Paddle(x=center_x, y=bottom_paddle_y, width=pad_w, height=pad_h, color="#f1fa8c")
         ]
         # ball placed at board center
-        self.ball = Ball(x=self.WIDTH/2, y=self.HEIGHT/2, radius=ball_radius, color="#FFFFFF", speed=350)
+        self.ball = Ball(x=self.WIDTH/2, y=self.HEIGHT/2, radius=ball_radius, color="#ff79c6", speed=350)
         self.scores = [0, 0]  # index 0 = top player, index 1 = bottom player
         self.last_update = time.time()
         # pieces: will be loaded from JSON DB (no hard-coded data in code)

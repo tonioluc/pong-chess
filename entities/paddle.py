@@ -1,7 +1,7 @@
 # entities/paddle.py
 
 class Paddle:
-    def __init__(self, x=400, y=580, width=120, height=12, color="#FFFFFF", speed=350):
+    def __init__(self, x=400, y=580, width=100, height=14, color="#bd93f9", speed=350):
         # x is center x
         self.x = x
         self.y = y
