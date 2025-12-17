@@ -42,22 +42,24 @@ class VieEditor:
     """Sidebar widget for editing piece HP values via REST API"""
     def __init__(self, parent, game=None):
         self.game = game  # Reference to Game instance (for local mode)
-        self.frame = tk.Frame(parent, bg="#2b2b2b", width=250)
-        self.frame.pack(side=tk.RIGHT, fill=tk.Y, padx=5, pady=5)
+        self.frame = tk.Frame(parent, bg="#0d1b2a", width=220)
+        self.frame.pack(side=tk.LEFT, fill=tk.Y, padx=0, pady=0)
         self.frame.pack_propagate(False)
         
-        # Title
-        title = tk.Label(self.frame, text="Gestion des Vies", bg="#2b2b2b", fg="#ffffff", font=("Arial", 14, "bold"))
-        title.pack(pady=(10, 5))
+        # Title with new style
+        title_frame = tk.Frame(self.frame, bg="#1b263b")
+        title_frame.pack(fill=tk.X, pady=(0, 8))
+        title = tk.Label(title_frame, text="⚙ Configuration HP", bg="#1b263b", fg="#e0e1dd", font=("Helvetica", 12, "bold"), pady=12)
+        title.pack()
         
-        # Refresh button
-        self.refresh_btn = tk.Button(self.frame, text="🔄 Actualiser", command=self.load_pieces, bg="#3a3a3a", fg="#ffffff")
-        self.refresh_btn.pack(pady=5, padx=10, fill=tk.X)
+        # Refresh button with new style
+        self.refresh_btn = tk.Button(self.frame, text="↻ Rafraîchir", command=self.load_pieces, bg="#415a77", fg="#e0e1dd", relief=tk.FLAT, font=("Helvetica", 10), cursor="hand2")
+        self.refresh_btn.pack(pady=8, padx=12, fill=tk.X)
         
         # Scrollable frame for pieces
-        canvas = tk.Canvas(self.frame, bg="#2b2b2b", highlightthickness=0)
-        scrollbar = tk.Scrollbar(self.frame, orient="vertical", command=canvas.yview)
-        self.scrollable_frame = tk.Frame(canvas, bg="#2b2b2b")
+        canvas = tk.Canvas(self.frame, bg="#0d1b2a", highlightthickness=0)
+        scrollbar = tk.Scrollbar(self.frame, orient="vertical", command=canvas.yview, bg="#1b263b")
+        self.scrollable_frame = tk.Frame(canvas, bg="#0d1b2a")
         
         self.scrollable_frame.bind(
             "<Configure>",
@@ -67,19 +69,19 @@ class VieEditor:
         canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        canvas.pack(side="left", fill="both", expand=True, padx=5)
+        canvas.pack(side="left", fill="both", expand=True, padx=8)
         scrollbar.pack(side="right", fill="y")
         
         # Store piece entries: {lid: (libelle_label, entry_widget, data)}
         self.piece_entries = {}
         
-        # Save all button
-        self.save_btn = tk.Button(self.frame, text="💾 Sauvegarder Tout", command=self.save_all, bg="#4a7c59", fg="#ffffff", font=("Arial", 11, "bold"))
-        self.save_btn.pack(side=tk.BOTTOM, pady=10, padx=10, fill=tk.X)
+        # Save all button with new style
+        self.save_btn = tk.Button(self.frame, text="✓ Tout Sauvegarder", command=self.save_all, bg="#06d6a0", fg="#0d1b2a", font=("Helvetica", 10, "bold"), relief=tk.FLAT, cursor="hand2")
+        self.save_btn.pack(side=tk.BOTTOM, pady=12, padx=12, fill=tk.X)
         
         # Status label
-        self.status_label = tk.Label(self.frame, text="", bg="#2b2b2b", fg="#ffffff", font=("Arial", 9))
-        self.status_label.pack(side=tk.BOTTOM, pady=5)
+        self.status_label = tk.Label(self.frame, text="", bg="#0d1b2a", fg="#e0e1dd", font=("Helvetica", 8))
+        self.status_label.pack(side=tk.BOTTOM, pady=4)
         
         # Delay auto-load until after mainloop starts to avoid segfault
         self.frame.after(100, self.load_pieces)
@@ -103,37 +105,37 @@ class VieEditor:
                 libelle = piece.get('libelle', '')
                 hp = piece.get('nombreVieInitiale', 0)
                 
-                # Frame per piece
-                piece_frame = tk.Frame(self.scrollable_frame, bg="#3a3a3a", relief=tk.RAISED, borderwidth=1)
-                piece_frame.pack(fill=tk.X, padx=5, pady=5)
+                # Frame per piece with new style
+                piece_frame = tk.Frame(self.scrollable_frame, bg="#1b263b", relief=tk.FLAT, borderwidth=0)
+                piece_frame.pack(fill=tk.X, padx=4, pady=4)
                 
                 # Libelle label
-                lbl = tk.Label(piece_frame, text=libelle, bg="#3a3a3a", fg="#ffffff", font=("Arial", 10, "bold"), anchor="w")
-                lbl.pack(fill=tk.X, padx=5, pady=(5, 2))
+                lbl = tk.Label(piece_frame, text=libelle, bg="#1b263b", fg="#e0e1dd", font=("Helvetica", 9, "bold"), anchor="w")
+                lbl.pack(fill=tk.X, padx=8, pady=(6, 2))
                 
                 # HP entry
-                hp_frame = tk.Frame(piece_frame, bg="#3a3a3a")
-                hp_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+                hp_frame = tk.Frame(piece_frame, bg="#1b263b")
+                hp_frame.pack(fill=tk.X, padx=8, pady=(0, 6))
                 
-                hp_label = tk.Label(hp_frame, text="HP:", bg="#3a3a3a", fg="#cccccc", font=("Arial", 9))
-                hp_label.pack(side=tk.LEFT, padx=(0, 5))
+                hp_label = tk.Label(hp_frame, text="PV:", bg="#1b263b", fg="#778da9", font=("Helvetica", 8))
+                hp_label.pack(side=tk.LEFT, padx=(0, 4))
                 
-                entry = tk.Entry(hp_frame, width=8, font=("Arial", 10))
+                entry = tk.Entry(hp_frame, width=6, font=("Helvetica", 9), bg="#415a77", fg="#e0e1dd", insertbackground="#e0e1dd", relief=tk.FLAT)
                 entry.insert(0, str(hp))
-                entry.pack(side=tk.LEFT, padx=(0, 5))
+                entry.pack(side=tk.LEFT, padx=(0, 6))
                 
                 # Individual save button
-                save_btn = tk.Button(hp_frame, text="💾", command=lambda l=lid: self.save_piece(l), bg="#4a7c59", fg="#ffffff", width=3)
+                save_btn = tk.Button(hp_frame, text="✓", command=lambda l=lid: self.save_piece(l), bg="#06d6a0", fg="#0d1b2a", width=2, relief=tk.FLAT, cursor="hand2")
                 save_btn.pack(side=tk.LEFT)
                 
                 # Store reference
                 self.piece_entries[lid] = (lbl, entry, piece)
             
-            self.status_label.config(text=f"✓ {len(pieces)} pièces chargées", fg="#4a7c59")
+            self.status_label.config(text=f"✓ {len(pieces)} pièces", fg="#06d6a0")
             logger.info(f"Loaded {len(pieces)} pieces from API")
             
         except Exception as e:
-            self.status_label.config(text=f"✗ Erreur: {str(e)[:30]}...", fg="#c94c4c")
+            self.status_label.config(text=f"✗ Erreur", fg="#ef476f")
             logger.error(f"Failed to load pieces: {e}")
     
     def save_piece(self, lid):
@@ -158,7 +160,7 @@ class VieEditor:
             
             # Update stored data
             original_data['nombreVieInitiale'] = new_hp
-            self.status_label.config(text=f"✓ {original_data['libelle']} mis à jour", fg="#4a7c59")
+            self.status_label.config(text=f"✓ {original_data['libelle']} OK", fg="#06d6a0")
             logger.info(f"Updated piece {lid}: {original_data['libelle']} -> {new_hp} HP")
             
             # Refresh game HP values if game instance is available
@@ -170,10 +172,10 @@ class VieEditor:
                     logger.error(f"Failed to refresh game HP: {e}")
             
         except ValueError as e:
-            self.status_label.config(text="✗ Valeur HP invalide", fg="#c94c4c")
+            self.status_label.config(text="✗ Valeur invalide", fg="#ef476f")
             logger.error(f"Invalid HP value for piece {lid}: {e}")
         except Exception as e:
-            self.status_label.config(text=f"✗ Erreur sauvegarde: {str(e)[:20]}...", fg="#c94c4c")
+            self.status_label.config(text=f"✗ Erreur sauvegarde", fg="#ef476f")
             logger.error(f"Failed to save piece {lid}: {e}")
     
     def save_all(self):
@@ -204,9 +206,9 @@ class VieEditor:
                 logger.error(f"Failed to save piece {lid}: {e}")
         
         if error_count == 0:
-            self.status_label.config(text=f"✓ {success_count} pièce(s) sauvegardée(s)", fg="#4a7c59")
+            self.status_label.config(text=f"✓ {success_count} sauvé(s)", fg="#06d6a0")
         else:
-            self.status_label.config(text=f"⚠ {success_count} OK, {error_count} erreur(s)", fg="#e6a23c")
+            self.status_label.config(text=f"⚠ {success_count} OK, {error_count} err", fg="#ffd166")
         
         # Refresh game HP values if game instance is available
         if self.game is not None and success_count > 0:
@@ -228,32 +230,42 @@ class ClientApp:
         """
         self.master = master
         self.mode = mode
-        self.master.title("Pong Client" + (" (Local)" if mode == "local" else ""))
+        self.master.title("Chess Pong" + (" [Solo]" if mode == "local" else " [Réseau]"))
+        self.master.configure(bg="#0d1b2a")
         
-        # Main container
-        main_container = tk.Frame(master)
+        # Main container with new background
+        main_container = tk.Frame(master, bg="#0d1b2a")
         main_container.pack(fill=tk.BOTH, expand=True)
         
-        # Game area (left/center) - create first
-        game_area = tk.Frame(main_container)
-        game_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        # Game area (right side now) - create first
+        game_area = tk.Frame(main_container, bg="#0d1b2a")
+        game_area.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(0, 8), pady=8)
         
         self.renderer = GameRenderer(game_area)
-        # control frame below canvas
-        self.ctrl_frame = tk.Frame(game_area)
-        self.ctrl_frame.pack(fill=tk.X)
-        self.new_game_btn = tk.Button(self.ctrl_frame, text="Nouvelle partie", command=lambda: self.send_control('new_game'))
-        self.new_game_btn.pack(side=tk.LEFT, padx=6, pady=6)
+        
+        # Control panel at bottom with new style
+        self.ctrl_frame = tk.Frame(game_area, bg="#1b263b", pady=8)
+        self.ctrl_frame.pack(fill=tk.X, pady=(8, 0))
+        
+        # New game button
+        self.new_game_btn = tk.Button(self.ctrl_frame, text="⟳ Nouvelle Partie", command=lambda: self.send_control('new_game'), bg="#415a77", fg="#e0e1dd", relief=tk.FLAT, font=("Helvetica", 10), cursor="hand2", padx=12)
+        self.new_game_btn.pack(side=tk.LEFT, padx=8, pady=4)
+        
         # Pause / Resume button
-        self.pause_btn = tk.Button(self.ctrl_frame, text="Pause (P)", command=lambda: self.toggle_pause())
-        self.pause_btn.pack(side=tk.LEFT, padx=6, pady=6)
-        # Extra dimensions input (optional): supports even values like 2,4,6,8
-        self.dims_label = tk.Label(self.ctrl_frame, text="Dimensions (2,4,6,8):")
-        self.dims_label.pack(side=tk.LEFT, padx=(12,4))
-        self.dims_entry = tk.Entry(self.ctrl_frame, width=6)
+        self.pause_btn = tk.Button(self.ctrl_frame, text="⏸ Pause", command=lambda: self.toggle_pause(), bg="#778da9", fg="#0d1b2a", relief=tk.FLAT, font=("Helvetica", 10), cursor="hand2", padx=12)
+        self.pause_btn.pack(side=tk.LEFT, padx=8, pady=4)
+        
+        # Separator
+        sep = tk.Frame(self.ctrl_frame, width=2, bg="#415a77")
+        sep.pack(side=tk.LEFT, fill=tk.Y, padx=12, pady=4)
+        
+        # Extra dimensions input with new style
+        self.dims_label = tk.Label(self.ctrl_frame, text="Grille:", bg="#1b263b", fg="#778da9", font=("Helvetica", 9))
+        self.dims_label.pack(side=tk.LEFT, padx=(4,4))
+        self.dims_entry = tk.Entry(self.ctrl_frame, width=4, font=("Helvetica", 9), bg="#415a77", fg="#e0e1dd", insertbackground="#e0e1dd", relief=tk.FLAT)
         self.dims_entry.pack(side=tk.LEFT, padx=(0,4))
-        self.dims_apply = tk.Button(self.ctrl_frame, text="Appliquer", command=lambda: self.apply_dimensions())
-        self.dims_apply.pack(side=tk.LEFT, padx=(0,6))
+        self.dims_apply = tk.Button(self.ctrl_frame, text="OK", command=lambda: self.apply_dimensions(), bg="#06d6a0", fg="#0d1b2a", relief=tk.FLAT, font=("Helvetica", 9, "bold"), cursor="hand2", width=3)
+        self.dims_apply.pack(side=tk.LEFT, padx=(0,8))
         # Trajectory selection buttons (for player 1 only, at game start)
         # self.trajectory_label = tk.Label(self.ctrl_frame, text="Traj:")
         # self.trajectory_label.pack(side=tk.LEFT, padx=(12,4))
@@ -544,7 +556,7 @@ class ClientApp:
                     self.paused = not self.paused
                     # update button label
                     try:
-                        self.pause_btn.config(text=("Reprendre (P)" if self.paused else "Pause (P)"))
+                        self.pause_btn.config(text=("▶ Reprendre" if self.paused else "⏸ Pause"))
                     except Exception:
                         pass
                     return
@@ -670,7 +682,7 @@ class ClientApp:
         if self.mode == 'local':
             self.paused = not self.paused
             try:
-                self.pause_btn.config(text=("Reprendre (P)" if self.paused else "Pause (P)"))
+                self.pause_btn.config(text=("▶ Reprendre" if self.paused else "⏸ Pause"))
             except Exception:
                 pass
         else:
@@ -678,7 +690,7 @@ class ClientApp:
             try:
                 # flip local for immediate feedback
                 self.paused = not self.paused
-                self.pause_btn.config(text=("Reprendre (P)" if self.paused else "Pause (P)"))
+                self.pause_btn.config(text=("▶ Reprendre" if self.paused else "⏸ Pause"))
             except Exception:
                 pass
             # send pause toggle to server
@@ -704,7 +716,7 @@ class ClientApp:
                 if server_paused != self.paused:
                     self.paused = server_paused
                     try:
-                        self.pause_btn.config(text=("Reprendre (P)" if self.paused else "Pause (P)"))
+                        self.pause_btn.config(text=("▶ Reprendre" if self.paused else "⏸ Pause"))
                     except Exception:
                         pass
             except Exception:
