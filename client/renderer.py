@@ -224,12 +224,12 @@ class GameRenderer:
         # Draw scores (top-right and bottom-right with new style)
         top_score = scores[0]
         bottom_score = scores[1]
-        if self.score_text_ids[0] is None:
-            self.score_text_ids[0] = self.canvas.create_text(w-60, 35, text=str(top_score), fill="#4ecdc4", font=("Courier", 24, "bold"))
-        else:
-            self.canvas.itemconfig(self.score_text_ids[0], text=str(top_score))
-        if self.score_text_ids[1] is None:
-            self.score_text_ids[1] = self.canvas.create_text(w-60, h-35, text=str(bottom_score), fill="#ffe66d", font=("Courier", 24, "bold"))
-        else:
-            self.canvas.itemconfig(self.score_text_ids[1], text=str(bottom_score))
+            # Scores are hidden by design; remove any existing score text items
+        for i in range(2):
+            if self.score_text_ids[i] is not None:
+                try:
+                    self.canvas.delete(self.score_text_ids[i])
+                except Exception:
+                    pass
+                self.score_text_ids[i] = None
 
