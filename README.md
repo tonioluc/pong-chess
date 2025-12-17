@@ -1,113 +1,89 @@
 
-# Pong Chess (Pong-Échecs)
+# Guide d'installation et d'exécution (déploiement sur une autre machine)
 
-Petit jeu hybride « Pong » / « Échecs » en Python (Tkinter). Deux joueurs contrôlent chacun une barre et doivent lancer une balle parmi des pions inspirés des pièces d'échecs. Le jeu supporte un mode local et un mode réseau (serveur + 2 clients).
+Objectif
+--------
+Ce document explique clairement et pas-à-pas comment exécuter le projet sur une machine différente (prérequis, build, lancement des services et des clients).
 
-## Résumé rapide
-- Langage : Python 3
-- UI : Tkinter (canvas)
-- Communication réseau : sockets TCP (JSON par ligne)
-
-## Fonctionnalités
-- Mode `local` : tout en un, pour tester rapidement
-- Mode `network` : serveur dédié + deux clients connectés
-- Choix de la trajectoire initiale par le joueur 1 (flèche, gauche/droite + Entrée)
-- Dimensions : possibilité de réduire la zone active via la variable d'environnement `EXTRA_DIMENSIONS` (2,4,6,8)
-- Collisions multi-pièces : la balle peut endommager plusieurs pièces en un même impact
-
-## Prérequis
-- Python 3.8+ installé (Ubuntu : `sudo apt install python3 python3-tk`)
-
-## Fichiers importants
-- `server.py` : boucle serveur / autorité de jeu
-- `client/client.py` : client Tkinter (mode `local` ou `network`)
-- `game.py` : logique du jeu, collisions, génération de plateaux réduits
-- `client/renderer.py` : rendu canvas
-- `entities/` : `ball.py`, `paddle.py` et autres entités
-
-## Installation / exécution
-
-Ouvrez un terminal dans le dossier du projet (exemple : `$HOME/Bureau/S5/mr-tahina/pong-chess`)
-
-### Mode local (test rapide, tout en un)
-```bash
-python3 ./client/client.py --mode local
-```
-
-### Mode réseau (serveur et clients séparés)
-
-Lancer le serveur :
-```bash
-python3 ./server.py
-```
-
-Lancer deux clients (sur la même machine ou depuis d'autres machines pointant sur l'IP du serveur) :
-```bash
-python3 ./client/client.py --mode network
-```
-
-## Contrôles
-- Joueur 1 (haut) : touches `A` / `D` (ou Flèche gauche / droite)
-- Joueur 2 (bas) : touches Flèche gauche / Flèche droite
-- Au début d'une partie, le Joueur 1 choisit la trajectoire initiale :
-	- utiliser Gauche / Droite pour orienter la flèche
-	- appuyer sur `Entrée` pour lancer la balle
-
-## Paramètres et options
-- Pour réduire le nombre de colonnes actives (2,4,6,8) :
-```bash
-export EXTRA_DIMENSIONS=4
-python3 ./client/client.py --mode local
-```
-
-## Optimisations réseau
-- Le serveur et les clients désactivent Nagle (`TCP_NODELAY`) et augmentent les buffers socket pour réduire la latence sur petits paquets.
-- Si vous constatez encore des lags, réduire `FRAME_RATE` dans `server.py` (par défaut 20.0) peut aider à diminuer la charge réseau.
-
-## Dépannage
-- Si la balle ne part pas après avoir pressé `Entrée` :
-	- En mode `local`, vérifiez la console du client : elle doit afficher `Local: player 1 chose trajectory: <angle>` puis `Ball trajectory chosen by player 1: <angle> ...`.
-	- En mode `network`, vérifiez les logs du serveur pour confirmer la réception du contrôle `trajectory` et son application.
-- Si un client ne se connecte pas, vérifiez l'adresse/port (`config.py` dans `client/` contient `SERVER_HOST` et `SERVER_PORT`).
-
-## Contribuer
-- Le code est volontairement simple et conçu pour être modifié. Proposez des améliorations via des commits ou ouvrez des issues.
-
-## Licence
-- Code fourni tel quel (pas de licence explicite). Utilisez-le et modifiez-le selon vos besoins.
-
-## Améliorations possibles
-- Interpolation client-side pour des updates serveur moins fréquentes
-- Passage à UDP ou messages différentiels pour réduire la bande passante
-- Interface utilisateur plus complète (HP, scores détaillés, menu)
-
----
-Pour toute question ou suggestion, ouvrez une issue ou contactez l’auteur.
-
-Optimisations réseau
----------------------
-- Le serveur et les clients désactivent Nagle (`TCP_NODELAY`) et augmentent les buffers socket pour réduire la latence sur petits paquets.
-- Si vous constatez encore des lags, réduire `FRAME_RATE` dans `server.py` (par défaut 20.0) peut aider à diminuer la charge réseau.
-
-Dépannage
+Prérequis
 ---------
-- Si la balle ne part pas après avoir pressé `Entrée` :
-	- En mode `local`, vérifiez la console du client : elle doit afficher `Local: player 1 chose trajectory: <angle>` puis `Ball trajectory chosen by player 1: <angle> ...`.
-	- En mode `network`, vérifiez les logs du serveur pour confirmer la réception du contrôle `trajectory` et son application.
-- Si un client ne se connecte pas, vérifiez l'adresse/port (`config.py` dans `client/` contient `SERVER_HOST` et `SERVER_PORT`).
+- Docker & Docker Compose (v2+) installés
+- Maven (commande `mvn` disponible)
+- Python 3.x installé
 
-Contribuer
----------
-- Le code est volontairement simple et conçu pour être modifié. Proposez des améliorations via des commits ou ouvrez des issues.
+Étapes pour démarrer le projet (single-machine)
+-----------------------------------------------
+1. Construire l'application Java (génère le WAR) :
 
-Licence
+```bash
+cd ejb-webservice-project
+mvn clean package
+```
+
+2. Démarrer les services backend (MySQL + WildFly) :
+
+```bash
+docker compose up --build
+```
+
+Notes:
+- Le conteneur MySQL exécutera `ejb-webservice-project/init.sql` lors de la première initialisation pour créer la base `viedb` et insérer les valeurs par défaut.
+- Le script `ejb-webservice-project/configure-wildfly.cli` configure le driver JDBC et la datasource. Il est conçu pour être idempotent afin d'éviter des erreurs de type "Duplicate resource" lors de redémarrages.
+
+3. Dans un nouveau terminal (toujours sur la même machine), lancer le serveur du jeu Python :
+
+```bash
+# depuis la racine du projet
+python3 server.py
+```
+
+4. Lancer le client en mode local (test rapide et rendu) :
+
+```bash
+cd client
+python3 client.py --mode local
+```
+
+Mode réseau (serveur et clients sur des machines séparées)
+-------------------------------------------------------
+1. Sur la machine serveur (hébergeant WildFly + MySQL + `server.py`), suivez les étapes 1–3 ci‑dessus.
+2. Sur chaque machine cliente, ouvrez `client/config.py` et modifiez la variable `SERVER_HOST` pour qu'elle contienne l'adresse IP de la machine serveur (où `server.py` tourne). Ne modifiez pas `config.py` sur la machine qui exécute le serveur.
+3. Lancez le client en mode réseau :
+
+```bash
+cd client
+python3 client.py --mode network
+```
+
+Remarques & dépannage rapide
+----------------------------
+- Si WildFly échoue avec `WFLYCTL0212: Duplicate resource`, n'exécutez pas systématiquement `docker compose down -v` — la configuration a été rendue idempotente. En dernier recours pour réinitialiser complètement la base de données :
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
+- Si le client réseau ne parvient pas à se connecter : vérifiez que
+  - `server.py` est démarré et écoute (par défaut port `9999`),
+  - le pare-feu sur la machine serveur autorise le port `9999`,
+  - `client/config.py` contient la bonne IP (`SERVER_HOST`).
+
+- Pour forcer une ré-initialisation des données MySQL (perd toutes les données), supprimez le volume MySQL :
+
+```bash
+docker compose down -v
+```
+
+Fichiers importants
+-------------------
+- `ejb-webservice-project/`: code Java (Maven), `Dockerfile`, `docker-compose.yml`, `configure-wildfly.cli`, `init.sql`.
+- `server.py`: serveur de jeu Python (autorité de jeu et interface vers l'API REST).
+- `client/`: code client (Tkinter) — `client/client.py`, `client/config.py`, `client/renderer.py`.
+
+Support
 -------
-- Code fourni tel quel (pas de licence explicite). Utilisez-le et modifiez-le selon vos besoins.
+Pour aider quelqu'un à reproduire l'environnement, fournir :
+- versions de Docker, Maven et Python
+- logs pertinents (`docker compose logs`, sortie de `server.py`)
 
-Améliorations possibles
-----------------------
-- Interpolation client-side pour des updates serveur moins fréquentes
-- Passage à UDP ou messages différentiels pour réduire la bande passante
-- Interface utilisateur plus complète (HP, scores détaillés, menu)
-
-Si vous voulez, je peux ajouter des instructions de test automatique ou un petit script pour lancer serveur+2 clients en local.
