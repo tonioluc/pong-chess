@@ -14,6 +14,9 @@ class Ball:
         self.dx = speed * math.sin(ang)
         self.dy = speed * (1 if random.choice((True, False)) else -1) * math.cos(ang)
         self.speed = speed
+        # special power flags provided by game logic (renderer consumes them)
+        self.special_ready = False
+        self.special_active = False
 
     def reset(self, x, y, speed=None, direction_down=True):
         import math, random
@@ -24,6 +27,9 @@ class Ball:
         ang = random.uniform(-math.pi/4, math.pi/4)
         self.dx = self.speed * math.sin(ang)
         self.dy = self.speed * (1 if direction_down else -1) * math.cos(ang)
+        # reset special flags when ball respawns
+        self.special_ready = False
+        self.special_active = False
 
     def update(self, dt):
         self.x += self.dx * dt
@@ -37,6 +43,8 @@ class Ball:
             "dy": self.dy,
             "radius": self.radius,
             "color": self.color,
-            "speed": self.speed
+            "speed": self.speed,
+            "special_ready": self.special_ready,
+            "special_active": self.special_active
         }
 

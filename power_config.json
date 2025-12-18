@@ -1,0 +1,5 @@
+{
+  "charge_max": 10,
+  "charge_per_hit": 1,
+  "special_damage": 100
+}

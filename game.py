@@ -20,6 +20,13 @@ API_BASE_URL = os.environ.get('VIE_API_URL', 'http://localhost:8080/vie-webservi
 COLS = 8
 ROWS = 8
 HIT_COOLDOWN = 0.12  # seconds during which a piece won't take another hit
+# Power-up configuration defaults (overridable via power_config.json)
+POWER_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'power_config.json')
+DEFAULT_POWER_CONFIG = {
+    "charge_max": 10,          # hits required to charge the special shot
+    "charge_per_hit": 1,       # charge gained per HP removed
+    "special_damage": 3        # HP removed by the empowered hit
+}
 
 
 class Game:
@@ -96,6 +103,10 @@ class Game:
         ]
         # ball placed at board center
         self.ball = Ball(x=self.WIDTH/2, y=self.HEIGHT/2, radius=ball_radius, color="#ff79c6", speed=350)
+        # power-up: charging bar that empowers the next hit
+        self.power_config_path = POWER_CONFIG_PATH
+        self.power_config = self._load_power_config()
+        self._reset_power_state(reload_config=False)
         self.scores = [0, 0]  # index 0 = top player, index 1 = bottom player
         self.last_update = time.time()
         # pieces: will be loaded from JSON DB (no hard-coded data in code)
@@ -310,6 +321,84 @@ class Game:
             loaded.append(p)
         self.pieces = loaded
 
+    def _load_power_config(self):
+        """Load power-up configuration from JSON with sane fallbacks."""
+        cfg = dict(DEFAULT_POWER_CONFIG)
+        path = getattr(self, 'power_config_path', POWER_CONFIG_PATH)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                for key in DEFAULT_POWER_CONFIG:
+                    if key in data:
+                        cfg[key] = data[key]
+            else:
+                logger.warning("Power config at %s is not a JSON object; using defaults", path)
+        except FileNotFoundError:
+            logger.info("Power config not found at %s; using defaults", path)
+        except Exception as e:
+            logger.warning("Failed to load power config %s: %s; using defaults", path, e)
+        return cfg
+
+    def update_power_config(self, new_config):
+        """Mettre à jour la configuration de puissance depuis un dictionnaire externe."""
+        if not isinstance(new_config, dict):
+            return False
+        try:
+            # Sauvegarder dans le fichier
+            path = getattr(self, 'power_config_path', POWER_CONFIG_PATH)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(new_config, f, ensure_ascii=False, indent=2)
+            # Recharger et appliquer (sans reset de charge)
+            self.power_config = new_config
+            cfg = new_config
+            self.power_max_charge = max(1, int(cfg.get('charge_max', DEFAULT_POWER_CONFIG['charge_max'])))
+            self.power_gain_per_hit = max(1, int(cfg.get('charge_per_hit', DEFAULT_POWER_CONFIG['charge_per_hit'])))
+            self.power_special_damage = max(1, int(cfg.get('special_damage', DEFAULT_POWER_CONFIG['special_damage'])))
+            # Si charge dépasse nouveau max, limiter
+            self.power_charge = min(self.power_charge, self.power_max_charge)
+            if self.power_charge >= self.power_max_charge:
+                self.power_ready = True
+            logger.info("Power config updated: max=%d, per_hit=%d, damage=%d", 
+                       self.power_max_charge, self.power_gain_per_hit, self.power_special_damage)
+            return True
+        except Exception as e:
+            logger.error("Failed to update power config: %s", e)
+            return False
+
+    def _reset_power_state(self, reload_config=True):
+        """Reset power bar values and optionally reload configuration."""
+        if reload_config:
+            self.power_config = self._load_power_config()
+        cfg = self.power_config if isinstance(self.power_config, dict) else DEFAULT_POWER_CONFIG
+        try:
+            charge_max = int(cfg.get('charge_max', DEFAULT_POWER_CONFIG['charge_max']))
+        except Exception:
+            charge_max = DEFAULT_POWER_CONFIG['charge_max']
+        try:
+            charge_per_hit = int(cfg.get('charge_per_hit', DEFAULT_POWER_CONFIG['charge_per_hit']))
+        except Exception:
+            charge_per_hit = DEFAULT_POWER_CONFIG['charge_per_hit']
+        try:
+            special_damage = int(cfg.get('special_damage', DEFAULT_POWER_CONFIG['special_damage']))
+        except Exception:
+            special_damage = DEFAULT_POWER_CONFIG['special_damage']
+
+        self.power_max_charge = max(1, charge_max)
+        self.power_gain_per_hit = max(1, charge_per_hit)
+        self.power_special_damage = max(1, special_damage)
+        self.power_charge = 0
+        self.power_ready = False
+        self.power_active = False
+        # Mode spécial perçant (traverse les pièces détruites)
+        self.special_piercing = False
+        self.special_remaining_damage = 0
+        try:
+            self.ball.special_ready = False
+            self.ball.special_active = False
+        except Exception:
+            pass
+
     def _create_new_game_from_template(self):
         # Ensure template exists
         if not os.path.exists(self.template_path):
@@ -425,6 +514,7 @@ class Game:
                 return {"scored": None, "collided": False}
         
         # Apply commands to paddles
+        self.power_active = False
         for pid, cmd in player_commands.items():
             if pid in (0,1):
                 self.paddles[pid].apply_command(cmd)
@@ -444,24 +534,36 @@ class Game:
         top = self.board['y']
         bottom = self.board['y'] + self.board['height']
         collided = False
+        wall_hit = False
         # left/right
         if self.ball.x - self.ball.radius < left:
             self.ball.x = left + self.ball.radius
             self.ball.dx *= -1
             collided = True
+            wall_hit = True
         if self.ball.x + self.ball.radius > right:
             self.ball.x = right - self.ball.radius
             self.ball.dx *= -1
             collided = True
+            wall_hit = True
         # top/bottom
         if self.ball.y - self.ball.radius < top:
             self.ball.y = top + self.ball.radius
             self.ball.dy *= -1
             collided = True
+            wall_hit = True
         if self.ball.y + self.ball.radius > bottom:
             self.ball.y = bottom - self.ball.radius
             self.ball.dy *= -1
             collided = True
+            wall_hit = True
+        
+        # Si la balle touche un mur pendant le mode spécial actif, annuler le pouvoir
+        if wall_hit and getattr(self, 'special_piercing', False):
+            logger.info("Mur touché! Pouvoir spécial annulé (dégâts restants: %d)", getattr(self, 'special_remaining_damage', 0))
+            self.special_piercing = False
+            self.special_remaining_damage = 0
+            self.power_active = False
 
         # Piece collisions: detect all pieces intersecting the ball this frame
         # and apply damage to each (instead of choosing one at random). Then
@@ -489,66 +591,122 @@ class Game:
                 colliding.append((pc, rleft, rtop, rright, rbottom, overlap_x, overlap_y))
 
         if colliding:
-            # Decide axis of response by averaging overlaps
-            sum_ox = sum(c[5] for c in colliding)
-            sum_oy = sum(c[6] for c in colliding)
-            axis = 'x' if sum_ox < sum_oy else 'y'
-            # compute average centers to determine which side to push ball out to
-            avg_cx = sum((c[1] + c[3]) / 2.0 for c in colliding) / len(colliding)
-            avg_cy = sum((c[2] + c[4]) / 2.0 for c in colliding) / len(colliding)
-            # respond: push ball outside combined rect area
-            if axis == 'x':
-                # push left or right based on ball x vs avg center x
-                if self.ball.x < avg_cx:
-                    # place to the left of the leftmost rect
-                    leftmost = min(c[1] for c in colliding)
-                    self.ball.x = leftmost - self.ball.radius
-                else:
-                    rightmost = max(c[3] for c in colliding)
-                    self.ball.x = rightmost + self.ball.radius
-                self.ball.dx *= -1
-            else:
-                if self.ball.y < avg_cy:
-                    topmost = min(c[2] for c in colliding)
-                    self.ball.y = topmost - self.ball.radius
-                else:
-                    bottommost = max(c[4] for c in colliding)
-                    self.ball.y = bottommost + self.ball.radius
-                self.ball.dy *= -1
-
-            collided = True
-
+            # Vérifier si on est en mode spécial perçant ou si on commence un nouveau spécial
+            use_special = bool(self.power_ready) or getattr(self, 'special_piercing', False)
+            
+            # Si c'est le début d'un nouveau spécial, initialiser le compteur de dégâts restants
+            if self.power_ready and not getattr(self, 'special_piercing', False):
+                self.special_piercing = True
+                self.special_remaining_damage = self.power_special_damage
+                self.power_ready = False
+                self.power_charge = 0
+                logger.info("DÉBUT POUVOIR SPÉCIAL! Capacité: %d dégâts", self.special_remaining_damage)
+            
             # apply damage to all collided pieces (respect cooldown per piece)
+            charge_gain = 0
+            total_damage_dealt = 0
+            pieces_destroyed = []
+            
             for (pc, rleft, rtop, rright, rbottom, overlap_x, overlap_y) in colliding:
                 last_hit = pc.get('last_hit', 0.0)
                 if now_ts - last_hit >= HIT_COOLDOWN:
-                    try:
-                        pc['hp'] = pc.get('hp', self.hp_map.get(pc.get('type'), 1)) - 1
-                    except Exception:
-                        pc['hp'] = self.hp_map.get(pc.get('type'), 1) - 1
-                    if pc['hp'] < 0:
-                        pc['hp'] = 0
+                    current_hp = pc.get('hp', self.hp_map.get(pc.get('type'), 1))
+                    
+                    if use_special and getattr(self, 'special_remaining_damage', 0) > 0:
+                        # Mode spécial: appliquer les dégâts disponibles
+                        damage_to_apply = min(self.special_remaining_damage, current_hp)
+                        pc['hp'] = max(0, current_hp - damage_to_apply)
+                        self.special_remaining_damage -= damage_to_apply
+                        total_damage_dealt += damage_to_apply
+                        logger.debug("Spécial: pièce touchée, dégâts=%d, HP restant=%d, capacité restante=%d", 
+                                   damage_to_apply, pc['hp'], self.special_remaining_damage)
+                    else:
+                        # Mode normal: 1 dégât
+                        applied = min(1, current_hp)
+                        pc['hp'] = max(0, current_hp - 1)
+                        charge_gain += applied * self.power_gain_per_hit
+                    
                     pc['last_hit'] = now_ts
+                    
+                    # Marquer les pièces détruites
+                    if pc['hp'] <= 0:
+                        pieces_destroyed.append(pc)
+            
+            # Déterminer si la balle doit rebondir ou traverser
+            should_bounce = True
+            
+            if use_special and getattr(self, 'special_piercing', False):
+                # En mode spécial: ne pas rebondir si toutes les pièces touchées sont détruites
+                # et qu'il reste de la capacité de dégâts
+                all_destroyed = all(pc['hp'] <= 0 for (pc, _, _, _, _, _, _) in colliding)
+                if all_destroyed and self.special_remaining_damage > 0:
+                    should_bounce = False
+                    logger.debug("Traversée! Toutes les pièces détruites, capacité restante: %d", self.special_remaining_damage)
+                else:
+                    # Soit une pièce survit, soit plus de capacité: rebondir et terminer le spécial
+                    should_bounce = True
+                    if self.special_remaining_damage <= 0:
+                        logger.info("FIN POUVOIR SPÉCIAL! Capacité épuisée après %d dégâts", total_damage_dealt)
+                    self.special_piercing = False
+                    self.special_remaining_damage = 0
+            
+            # Appliquer le rebond si nécessaire
+            if should_bounce:
+                # Decide axis of response by averaging overlaps
+                sum_ox = sum(c[5] for c in colliding)
+                sum_oy = sum(c[6] for c in colliding)
+                axis = 'x' if sum_ox < sum_oy else 'y'
+                # compute average centers to determine which side to push ball out to
+                avg_cx = sum((c[1] + c[3]) / 2.0 for c in colliding) / len(colliding)
+                avg_cy = sum((c[2] + c[4]) / 2.0 for c in colliding) / len(colliding)
+                # respond: push ball outside combined rect area
+                if axis == 'x':
+                    if self.ball.x < avg_cx:
+                        leftmost = min(c[1] for c in colliding)
+                        self.ball.x = leftmost - self.ball.radius
+                    else:
+                        rightmost = max(c[3] for c in colliding)
+                        self.ball.x = rightmost + self.ball.radius
+                    self.ball.dx *= -1
+                else:
+                    if self.ball.y < avg_cy:
+                        topmost = min(c[2] for c in colliding)
+                        self.ball.y = topmost - self.ball.radius
+                    else:
+                        bottommost = max(c[4] for c in colliding)
+                        self.ball.y = bottommost + self.ball.radius
+                    self.ball.dy *= -1
+                collided = True
+            
+            # Mettre à jour la charge si en mode normal
+            if charge_gain > 0 and not use_special:
+                self.power_charge = min(self.power_charge + charge_gain, self.power_max_charge)
+                logger.debug("Power charge: %d/%d", self.power_charge, self.power_max_charge)
+                if self.power_charge >= self.power_max_charge:
+                    self.power_ready = True
+                    logger.info("PUISSANCE PRÊTE! Prochain coup = %d dégâts", self.power_special_damage)
+            
+            # Mettre à jour le flag d'activation pour l'affichage
+            self.power_active = getattr(self, 'special_piercing', False)
 
             # remove pieces with zero hp and persist
-            for (pc, rleft, rtop, rright, rbottom, overlap_x, overlap_y) in list(colliding):
-                if pc.get('hp', 0) <= 0:
-                    try:
-                        self.pieces.remove(pc)
-                    except ValueError:
-                        pass
-                    try:
-                        self._write_db()
-                    except Exception:
-                        pass
-                    if pc.get('type') == 'K':
-                        king_color = pc.get('color')
-                        if king_color == 'white':
-                            winner = 0
-                        else:
-                            winner = 1
-                        self.game_over = {"winner": winner, "king_color": king_color}
-                        logger.info("Game over: king %s destroyed, winner=%s", king_color, winner)
+            for pc in pieces_destroyed:
+                try:
+                    self.pieces.remove(pc)
+                except ValueError:
+                    pass
+                try:
+                    self._write_db()
+                except Exception:
+                    pass
+                if pc.get('type') == 'K':
+                    king_color = pc.get('color')
+                    if king_color == 'white':
+                        winner = 0
+                    else:
+                        winner = 1
+                    self.game_over = {"winner": winner, "king_color": king_color}
+                    logger.info("Game over: king %s destroyed, winner=%s", king_color, winner)
 
         # Paddle collisions
         # Paddle collisions - use circle-rect collision test to be robust against tunneling
@@ -622,6 +780,13 @@ class Game:
             self.ball.dx *= k
             self.ball.dy *= k
 
+        # expose power flags to the renderer via the ball dict
+        try:
+            self.ball.special_ready = bool(self.power_ready)
+            self.ball.special_active = bool(getattr(self, 'special_piercing', False))
+        except Exception:
+            pass
+
         return {"scored": scored, "collided": collided}
 
     def get_state(self):
@@ -644,6 +809,15 @@ class Game:
                 "max_hp": pc.get('max_hp', self.hp_map.get(pc.get('type'), 1))
             })
 
+        power_state = {
+            "charge": int(getattr(self, 'power_charge', 0)),
+            "max_charge": int(getattr(self, 'power_max_charge', DEFAULT_POWER_CONFIG['charge_max'])),
+            "ready": bool(getattr(self, 'power_ready', False)),
+            "active": bool(getattr(self, 'special_piercing', False)),
+            "special_damage": int(getattr(self, 'power_special_damage', DEFAULT_POWER_CONFIG['special_damage'])),
+            "remaining_damage": int(getattr(self, 'special_remaining_damage', 0))
+        }
+
         return {
             "width": self.WIDTH,
             "height": self.HEIGHT,
@@ -654,7 +828,8 @@ class Game:
             "scores": list(self.scores),
             "timestamp": time.time(),
             "game_over": self.game_over,
-            "waiting_trajectory": getattr(self, 'waiting_trajectory', False)
+            "waiting_trajectory": getattr(self, 'waiting_trajectory', False),
+            "power": power_state
         }
 
     def reset_game(self):
@@ -709,6 +884,7 @@ class Game:
                 Paddle(x=center_x, y=bottom_paddle_y, width=pad_w, height=pad_h, color="#FFCC00")
             ]
             self.ball = Ball(x=self.WIDTH/2, y=self.HEIGHT/2, radius=ball_radius, color="#FFFFFF", speed=350)
+            self._reset_power_state(reload_config=True)
 
             self._create_new_game_from_template()
             # reset ball position and require player 1 to choose trajectory again

@@ -32,6 +32,11 @@ class GameRenderer:
         self.grid_ids = []
         # pieces: mapping (col,row) -> (rect_id, text_id, hp_bg_id, hp_fg_id, hp_text_id)
         self.piece_items = {}
+        # power bar ids
+        self.power_bg_id = None
+        self.power_fg_id = None
+        self.power_text_id = None
+        self.power_glow_id = None
 
     def clear(self):
         self.canvas.delete("all")
@@ -41,6 +46,10 @@ class GameRenderer:
         self.board_bg_id = None
         self.grid_ids = []
         self.piece_items = {}
+        self.power_bg_id = None
+        self.power_fg_id = None
+        self.power_text_id = None
+        self.power_glow_id = None
 
     def draw_state(self, state):
         # state contains width/height/board/ball/paddles/pieces/scores
@@ -51,6 +60,75 @@ class GameRenderer:
         paddles_d = state.get("paddles", [{}, {}])
         pieces = state.get("pieces", [])
         scores = state.get("scores", [0,0])
+        power = state.get("power", {})
+
+        # power bar (top center)
+        try:
+            charge = max(0, int(power.get("charge", 0)))
+            max_charge = max(1, int(power.get("max_charge", 10)))
+            ready = bool(power.get("ready", False))
+            active = bool(power.get("active", False))
+            special_damage = int(power.get("special_damage", 1))
+            remaining_damage = int(power.get("remaining_damage", 0))
+            ratio = min(1.0, charge / max_charge) if max_charge > 0 else 0.0
+            bar_w = w * 0.6
+            bar_h = 14
+            x0 = (w - bar_w) / 2
+            y0 = 8
+            x1 = x0 + bar_w
+            y1 = y0 + bar_h
+            # background
+            if self.power_bg_id is None:
+                self.power_bg_id = self.canvas.create_rectangle(x0, y0, x1, y1, fill="#0d1b2a", outline="#415a77", width=2)
+            else:
+                self.canvas.coords(self.power_bg_id, x0, y0, x1, y1)
+                self.canvas.itemconfig(self.power_bg_id, fill="#0d1b2a", outline="#415a77")
+            # foreground - en mode actif, afficher les dégâts restants
+            if active and remaining_damage > 0:
+                # Barre qui montre les dégâts restants
+                active_ratio = remaining_damage / special_damage if special_damage > 0 else 0
+                fg_w = bar_w * active_ratio
+                fg_color = "#e63946"  # Rouge vif pour indiquer le mode actif
+            else:
+                fg_w = bar_w * ratio
+                fg_color = "#fb8500" if ready else "#06d6a0"
+            if self.power_fg_id is None:
+                self.power_fg_id = self.canvas.create_rectangle(x0, y0, x0 + fg_w, y1, fill=fg_color, outline=fg_color)
+            else:
+                self.canvas.coords(self.power_fg_id, x0, y0, x0 + fg_w, y1)
+                self.canvas.itemconfig(self.power_fg_id, fill=fg_color, outline=fg_color)
+            # glow when ready or active
+            if (ready or active) and self.power_glow_id is None:
+                glow_col = "#e63946" if active else "#f4a261"
+                self.power_glow_id = self.canvas.create_rectangle(x0 - 6, y0 - 4, x1 + 6, y1 + 4, outline=glow_col, width=2, dash=(4,2))
+            elif ready or active:
+                glow_col = "#e63946" if active else "#f4a261"
+                self.canvas.coords(self.power_glow_id, x0 - 6, y0 - 4, x1 + 6, y1 + 4)
+                self.canvas.itemconfig(self.power_glow_id, outline=glow_col)
+            else:
+                if self.power_glow_id is not None:
+                    try:
+                        self.canvas.delete(self.power_glow_id)
+                    except Exception:
+                        pass
+                    self.power_glow_id = None
+            # text label
+            if active and remaining_damage > 0:
+                label = f"⚡ PERÇANT! Dégâts restants: {remaining_damage}/{special_damage}"
+                text_color = "#e63946"
+            elif ready:
+                label = f"⚡ PRÊT! Puissance: {charge}/{max_charge} (x{special_damage})"
+                text_color = "#f4a261"
+            else:
+                label = f"Puissance: {charge}/{max_charge} (x{special_damage})"
+                text_color = "#e0e1dd"
+            if self.power_text_id is None:
+                self.power_text_id = self.canvas.create_text(w/2, y0 + bar_h/2, text=label, fill=text_color, font=("Helvetica", 10, "bold"))
+            else:
+                self.canvas.coords(self.power_text_id, w/2, y0 + bar_h/2)
+                self.canvas.itemconfig(self.power_text_id, text=label, fill=text_color)
+        except Exception:
+            pass
 
         # draw board
         if board:
@@ -199,12 +277,23 @@ class GameRenderer:
         bx_ball = ball_d.get("x", w/2)
         by_ball = ball_d.get("y", h/2)
         r = ball_d.get("radius", 8)
-        color = ball_d.get("color", "#FFFFFF")
+        # highlight ball when special shot is ready/active
+        is_special_active = bool(ball_d.get("special_active", False))
+        is_special_ready = bool(ball_d.get("special_ready", False))
+        base_color = ball_d.get("color", "#FFFFFF")
+        if is_special_active:
+            color = "#ffb703"
+            glow_color = "#fb8500"
+        elif is_special_ready:
+            color = "#ffd166"
+            glow_color = "#f77f00"
+        else:
+            color = base_color
+            glow_color = "#ff6b6b"
         left = bx_ball - r
         top = by_ball - r
         right = bx_ball + r
         bottom = by_ball + r
-        glow_color = "#ff6b6b"
         if self.ball_id is None:
             self.ball_id = self.canvas.create_oval(left, top, right, bottom, fill=color, outline=glow_color, width=3)
         else:

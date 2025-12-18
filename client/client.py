@@ -218,6 +218,286 @@ class VieEditor:
             except Exception as e:
                 logger.error(f"Failed to refresh game HP: {e}")
 
+
+class PowerConfigEditor:
+    """Panneau de configuration pour le système de puissance spéciale"""
+    def __init__(self, parent, game=None):
+        self.game = game
+        self.frame = tk.Frame(parent, bg="#1b263b", relief=tk.FLAT)
+        self.frame.pack(fill=tk.X, padx=8, pady=8)
+        
+        # Titre
+        title = tk.Label(self.frame, text="⚡ Puissance Spéciale", bg="#1b263b", fg="#f4a261", 
+                        font=("Helvetica", 11, "bold"), pady=6)
+        title.pack(fill=tk.X)
+        
+        # Charge max
+        row1 = tk.Frame(self.frame, bg="#1b263b")
+        row1.pack(fill=tk.X, padx=8, pady=4)
+        tk.Label(row1, text="Charge max:", bg="#1b263b", fg="#e0e1dd", font=("Helvetica", 9)).pack(side=tk.LEFT)
+        self.charge_max_entry = tk.Entry(row1, width=5, font=("Helvetica", 9), bg="#415a77", fg="#e0e1dd", 
+                                         insertbackground="#e0e1dd", relief=tk.FLAT)
+        self.charge_max_entry.pack(side=tk.RIGHT, padx=4)
+        
+        # Charge par coup
+        row2 = tk.Frame(self.frame, bg="#1b263b")
+        row2.pack(fill=tk.X, padx=8, pady=4)
+        tk.Label(row2, text="Charge/coup:", bg="#1b263b", fg="#e0e1dd", font=("Helvetica", 9)).pack(side=tk.LEFT)
+        self.charge_per_hit_entry = tk.Entry(row2, width=5, font=("Helvetica", 9), bg="#415a77", fg="#e0e1dd",
+                                              insertbackground="#e0e1dd", relief=tk.FLAT)
+        self.charge_per_hit_entry.pack(side=tk.RIGHT, padx=4)
+        
+        # Dégâts spéciaux
+        row3 = tk.Frame(self.frame, bg="#1b263b")
+        row3.pack(fill=tk.X, padx=8, pady=4)
+        tk.Label(row3, text="Dégâts spéciaux:", bg="#1b263b", fg="#e0e1dd", font=("Helvetica", 9)).pack(side=tk.LEFT)
+        self.special_damage_entry = tk.Entry(row3, width=5, font=("Helvetica", 9), bg="#415a77", fg="#e0e1dd",
+                                              insertbackground="#e0e1dd", relief=tk.FLAT)
+        self.special_damage_entry.pack(side=tk.RIGHT, padx=4)
+        
+        # Bouton appliquer
+        self.apply_btn = tk.Button(self.frame, text="✓ Appliquer", command=self.apply_config,
+                                   bg="#fb8500", fg="#0d1b2a", font=("Helvetica", 9, "bold"),
+                                   relief=tk.FLAT, cursor="hand2")
+        self.apply_btn.pack(fill=tk.X, padx=8, pady=8)
+        
+        # Status
+        self.status_label = tk.Label(self.frame, text="", bg="#1b263b", fg="#e0e1dd", font=("Helvetica", 8))
+        self.status_label.pack(pady=2)
+        
+        # Charger les valeurs initiales
+        self.frame.after(200, self.load_config)
+    
+    def load_config(self):
+        """Charger la configuration depuis le fichier ou le jeu"""
+        try:
+            config_path = os.path.join(ROOT, 'power_config.json')
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            else:
+                config = {"charge_max": 10, "charge_per_hit": 1, "special_damage": 3}
+            
+            self.charge_max_entry.delete(0, tk.END)
+            self.charge_max_entry.insert(0, str(config.get("charge_max", 10)))
+            
+            self.charge_per_hit_entry.delete(0, tk.END)
+            self.charge_per_hit_entry.insert(0, str(config.get("charge_per_hit", 1)))
+            
+            self.special_damage_entry.delete(0, tk.END)
+            self.special_damage_entry.insert(0, str(config.get("special_damage", 3)))
+            
+            self.status_label.config(text="✓ Config chargée", fg="#06d6a0")
+        except Exception as e:
+            self.status_label.config(text="✗ Erreur chargement", fg="#ef476f")
+            logger.error(f"Failed to load power config: {e}")
+    
+    def apply_config(self):
+        """Appliquer et sauvegarder la nouvelle configuration"""
+        try:
+            charge_max = int(self.charge_max_entry.get())
+            charge_per_hit = int(self.charge_per_hit_entry.get())
+            special_damage = int(self.special_damage_entry.get())
+            
+            if charge_max < 1 or charge_per_hit < 1 or special_damage < 1:
+                raise ValueError("Les valeurs doivent être >= 1")
+            
+            new_config = {
+                "charge_max": charge_max,
+                "charge_per_hit": charge_per_hit,
+                "special_damage": special_damage
+            }
+            
+            # Sauvegarder dans le fichier
+            config_path = os.path.join(ROOT, 'power_config.json')
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(new_config, f, ensure_ascii=False, indent=2)
+            
+            # Mettre à jour le jeu en temps réel si disponible
+            if self.game is not None:
+                try:
+                    self.game.update_power_config(new_config)
+                except Exception as e:
+                    logger.error(f"Failed to update game power config: {e}")
+            
+            self.status_label.config(text=f"✓ Config appliquée (x{special_damage} dégâts)", fg="#06d6a0")
+            logger.info(f"Power config applied: max={charge_max}, per_hit={charge_per_hit}, damage={special_damage}")
+            
+        except ValueError as e:
+            self.status_label.config(text="✗ Valeurs invalides", fg="#ef476f")
+            logger.error(f"Invalid power config values: {e}")
+        except Exception as e:
+            self.status_label.config(text="✗ Erreur", fg="#ef476f")
+            logger.error(f"Failed to apply power config: {e}")
+
+
+class PowerConfigPanel:
+    """Panneau latéral droit pour la configuration de puissance"""
+    def __init__(self, parent, game=None):
+        self.game = game
+        self.frame = tk.Frame(parent, bg="#0d1b2a")
+        self.frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Titre principal
+        title_frame = tk.Frame(self.frame, bg="#1b263b")
+        title_frame.pack(fill=tk.X, pady=(0, 8))
+        title = tk.Label(title_frame, text="⚡ Config Puissance", bg="#1b263b", fg="#f4a261", 
+                        font=("Helvetica", 12, "bold"), pady=12)
+        title.pack()
+        
+        # Container pour les paramètres
+        config_frame = tk.Frame(self.frame, bg="#1b263b", relief=tk.FLAT)
+        config_frame.pack(fill=tk.X, padx=8, pady=8)
+        
+        # Charge max
+        row1 = tk.Frame(config_frame, bg="#1b263b")
+        row1.pack(fill=tk.X, padx=8, pady=6)
+        tk.Label(row1, text="📊 Charge max", bg="#1b263b", fg="#e0e1dd", 
+                font=("Helvetica", 9, "bold")).pack(anchor="w")
+        tk.Label(row1, text="Coups pour charger", bg="#1b263b", fg="#778da9", 
+                font=("Helvetica", 8)).pack(anchor="w")
+        self.charge_max_entry = tk.Entry(row1, width=8, font=("Helvetica", 11), bg="#415a77", 
+                                         fg="#e0e1dd", insertbackground="#e0e1dd", relief=tk.FLAT,
+                                         justify="center")
+        self.charge_max_entry.pack(pady=4)
+        
+        # Séparateur
+        sep1 = tk.Frame(config_frame, height=1, bg="#415a77")
+        sep1.pack(fill=tk.X, padx=8, pady=4)
+        
+        # Charge par coup
+        row2 = tk.Frame(config_frame, bg="#1b263b")
+        row2.pack(fill=tk.X, padx=8, pady=6)
+        tk.Label(row2, text="⬆️ Charge/coup", bg="#1b263b", fg="#e0e1dd", 
+                font=("Helvetica", 9, "bold")).pack(anchor="w")
+        tk.Label(row2, text="Gain par dégât", bg="#1b263b", fg="#778da9", 
+                font=("Helvetica", 8)).pack(anchor="w")
+        self.charge_per_hit_entry = tk.Entry(row2, width=8, font=("Helvetica", 11), bg="#415a77", 
+                                              fg="#e0e1dd", insertbackground="#e0e1dd", relief=tk.FLAT,
+                                              justify="center")
+        self.charge_per_hit_entry.pack(pady=4)
+        
+        # Séparateur
+        sep2 = tk.Frame(config_frame, height=1, bg="#415a77")
+        sep2.pack(fill=tk.X, padx=8, pady=4)
+        
+        # Dégâts spéciaux
+        row3 = tk.Frame(config_frame, bg="#1b263b")
+        row3.pack(fill=tk.X, padx=8, pady=6)
+        tk.Label(row3, text="💥 Dégâts spéciaux", bg="#1b263b", fg="#e0e1dd", 
+                font=("Helvetica", 9, "bold")).pack(anchor="w")
+        tk.Label(row3, text="HP retirés (perçant)", bg="#1b263b", fg="#778da9", 
+                font=("Helvetica", 8)).pack(anchor="w")
+        self.special_damage_entry = tk.Entry(row3, width=8, font=("Helvetica", 11), bg="#415a77", 
+                                              fg="#e0e1dd", insertbackground="#e0e1dd", relief=tk.FLAT,
+                                              justify="center")
+        self.special_damage_entry.pack(pady=4)
+        
+        # Boutons
+        btn_frame = tk.Frame(config_frame, bg="#1b263b")
+        btn_frame.pack(fill=tk.X, padx=8, pady=12)
+        
+        # Bouton Appliquer
+        self.apply_btn = tk.Button(btn_frame, text="✓ Appliquer", command=self.apply_config,
+                                   bg="#fb8500", fg="#0d1b2a", font=("Helvetica", 10, "bold"),
+                                   relief=tk.FLAT, cursor="hand2")
+        self.apply_btn.pack(fill=tk.X, pady=4)
+        
+        # Bouton Recharger
+        self.reload_btn = tk.Button(btn_frame, text="↻ Recharger", command=self.load_config,
+                                   bg="#415a77", fg="#e0e1dd", font=("Helvetica", 9),
+                                   relief=tk.FLAT, cursor="hand2")
+        self.reload_btn.pack(fill=tk.X, pady=4)
+        
+        # Status
+        self.status_label = tk.Label(config_frame, text="", bg="#1b263b", fg="#e0e1dd", 
+                                    font=("Helvetica", 9), wraplength=180)
+        self.status_label.pack(pady=8)
+        
+        # Info sur le mode perçant
+        info_frame = tk.Frame(self.frame, bg="#0d1b2a")
+        info_frame.pack(fill=tk.X, padx=8, pady=8)
+        
+        info_title = tk.Label(info_frame, text="ℹ️ Mode Perçant", bg="#0d1b2a", fg="#06d6a0",
+                             font=("Helvetica", 9, "bold"))
+        info_title.pack(anchor="w")
+        
+        info_text = tk.Label(info_frame, text="La balle traverse les\npièces détruites et\ncontinue jusqu'à épuiser\nsa capacité de dégâts.",
+                            bg="#0d1b2a", fg="#778da9", font=("Helvetica", 8), justify="left")
+        info_text.pack(anchor="w", pady=4)
+        
+        # Charger les valeurs initiales
+        self.frame.after(200, self.load_config)
+    
+    def set_game(self, game):
+        """Définir la référence au jeu"""
+        self.game = game
+    
+    def load_config(self):
+        """Charger la configuration depuis le fichier"""
+        try:
+            config_path = os.path.join(ROOT, 'power_config.json')
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            else:
+                config = {"charge_max": 10, "charge_per_hit": 1, "special_damage": 3}
+            
+            self.charge_max_entry.delete(0, tk.END)
+            self.charge_max_entry.insert(0, str(config.get("charge_max", 10)))
+            
+            self.charge_per_hit_entry.delete(0, tk.END)
+            self.charge_per_hit_entry.insert(0, str(config.get("charge_per_hit", 1)))
+            
+            self.special_damage_entry.delete(0, tk.END)
+            self.special_damage_entry.insert(0, str(config.get("special_damage", 3)))
+            
+            self.status_label.config(text="✓ Config chargée", fg="#06d6a0")
+        except Exception as e:
+            self.status_label.config(text="✗ Erreur chargement", fg="#ef476f")
+            logger.error(f"Failed to load power config: {e}")
+    
+    def apply_config(self):
+        """Appliquer et sauvegarder la configuration"""
+        try:
+            charge_max = int(self.charge_max_entry.get())
+            charge_per_hit = int(self.charge_per_hit_entry.get())
+            special_damage = int(self.special_damage_entry.get())
+            
+            if charge_max < 1 or charge_per_hit < 1 or special_damage < 1:
+                raise ValueError("Les valeurs doivent être >= 1")
+            
+            new_config = {
+                "charge_max": charge_max,
+                "charge_per_hit": charge_per_hit,
+                "special_damage": special_damage
+            }
+            
+            # Sauvegarder dans le fichier
+            config_path = os.path.join(ROOT, 'power_config.json')
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(new_config, f, ensure_ascii=False, indent=2)
+            
+            # Mettre à jour le jeu en temps réel si disponible
+            if self.game is not None:
+                try:
+                    self.game.update_power_config(new_config)
+                    self.status_label.config(text=f"✓ Appliqué!\nCharge: {charge_max}\nDégâts: x{special_damage}", fg="#06d6a0")
+                except Exception as e:
+                    self.status_label.config(text=f"⚠ Fichier OK\nJeu non mis à jour", fg="#ffd166")
+                    logger.error(f"Failed to update game: {e}")
+            else:
+                self.status_label.config(text=f"✓ Sauvegardé\n(Redémarrer le jeu)", fg="#ffd166")
+            
+            logger.info(f"Power config saved: max={charge_max}, per_hit={charge_per_hit}, damage={special_damage}")
+            
+        except ValueError as e:
+            self.status_label.config(text="✗ Valeurs invalides\n(entiers >= 1)", fg="#ef476f")
+        except Exception as e:
+            self.status_label.config(text="✗ Erreur", fg="#ef476f")
+            logger.error(f"Failed to apply power config: {e}")
+
+
 class ClientApp:
     FRAME_RATE = 30
     FRAME_DT = 1.0 / FRAME_RATE
@@ -237,7 +517,15 @@ class ClientApp:
         main_container = tk.Frame(master, bg="#0d1b2a")
         main_container.pack(fill=tk.BOTH, expand=True)
         
-        # Game area (right side now) - create first
+        # Right sidebar for power configuration
+        right_sidebar = tk.Frame(main_container, bg="#0d1b2a", width=200)
+        right_sidebar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 8), pady=8)
+        right_sidebar.pack_propagate(False)
+        
+        # Power config panel in right sidebar (game ref will be set later)
+        self.power_config_panel = PowerConfigPanel(right_sidebar, game=None)
+        
+        # Game area (center)
         game_area = tk.Frame(main_container, bg="#0d1b2a")
         game_area.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(0, 8), pady=8)
         
@@ -304,6 +592,8 @@ class ClientApp:
             self.local_commands = {0: "stop", 1: "stop"}
             # Create VieEditor with game reference (after game is initialized)
             self.vie_editor = VieEditor(main_container, game=self.game)
+            # Mettre à jour la référence du jeu dans le panneau de config puissance
+            self.power_config_panel.set_game(self.game)
             # trajectory selection angle in degrees (default = down)
             self.traj_angle = 270.0
             self.traj_canvas_id = None
