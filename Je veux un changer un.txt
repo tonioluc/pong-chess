@@ -1,2 +1,0 @@
-Je veux un changer un peu l'affichage du jeu (l'emplacement , le couleur de terrain ou pièces) car je vais donner mon donne à un ami et je veux que ça ne ressemble pas trop , tu ne vas pas touché la partie logique (règle du jeu) mais juste l'affichage pour que mon code ne ressemble pas trop à d'autrui que je vais donner mes codes.
-EN résumer je veux faire en sorte qu'on a pas le moindre doute que l'interface graphique a une ressemblance au précédent 
