@@ -23,7 +23,7 @@ mvn clean package
 2. Démarrer les services backend (MySQL + WildFly) :
 
 ```bash
-docker compose up --build
+docker compose up
 ```
 
 Notes:
